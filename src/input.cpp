@@ -2,57 +2,27 @@
 
 #define DEBUG_DISPATCH false
 
-std::unordered_set<ExtendedKeyboardDelegate*> ExtendedCCKeyboardDispatcher::g_extendedInputDelegates{};
 std::uint64_t ExtendedCCKeyboardDispatcher::g_lastTimestamp = 0ull;
-
-void ExtendedCCKeyboardDispatcher::addDelegate(ExtendedKeyboardDelegate* delegate) {
-	g_extendedInputDelegates.insert(delegate);
-}
-
-void ExtendedCCKeyboardDispatcher::removeDelegate(ExtendedKeyboardDelegate* delegate) {
-	g_extendedInputDelegates.erase(delegate);
-}
+cocos2d::CCEvent* ExtendedCCKeyboardDispatcher::g_currentEventInfo = nullptr;
 
 void ExtendedCCKeyboardDispatcher::setTimestamp(std::uint64_t timestamp) {
 	g_lastTimestamp = timestamp;
 }
 
+cocos2d::CCEvent* ExtendedCCKeyboardDispatcher::getCurrentEventInfo() {
+	return g_currentEventInfo;
+};
+
 bool ExtendedCCKeyboardDispatcher::dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isKeyDown, bool isKeyRepeat) {
-	if (!CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat)) {
-		return false;
-	}
+	g_currentEventInfo = new ExtendedCCEvent(g_lastTimestamp);
 
-	// the message was dispatched, so continue to pass it along
+	auto r = CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat);
 
-	// convertKeyCode (inlined on macOS, so rewritten here)
-	switch (key) {
-		case cocos2d::KEY_ArrowUp:
-			key = cocos2d::KEY_Up;
-			break;
-		case cocos2d::KEY_ArrowDown:
-			key = cocos2d::KEY_Down;
-			break;
-		case cocos2d::KEY_ArrowLeft:
-			key = cocos2d::KEY_Left;
-			break;
-		case cocos2d::KEY_ArrowRight:
-			key = cocos2d::KEY_Right;
-			break;
-		default: break;
-	}
-
-	auto event = new ExtendedCCEvent(g_lastTimestamp);
-
-	for (const auto& delegate : g_extendedInputDelegates) {
-		if (isKeyDown) {
-			delegate->extendedKeyDown(key, event);
-		} else {
-			delegate->extendedKeyUp(key, event);
-		}
-	}
-
+	delete g_currentEventInfo;
+	g_currentEventInfo = nullptr;
 	g_lastTimestamp = 0ull;
-	return true;
+
+	return r;
 }
 
 std::uint64_t ExtendedCCTouchDispatcher::g_lastTimestamp = 0ull;

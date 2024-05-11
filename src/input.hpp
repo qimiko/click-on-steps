@@ -22,23 +22,15 @@ public:
 	}
 };
 
-// this part is a little not ideal, but it's very hard to add a new parameter to the game
-// (unless you were robtop, then this custom delegate thing wouldn't be necessary)
-class ExtendedKeyboardDelegate {
-public:
-	virtual void extendedKeyDown(cocos2d::enumKeyCodes key, cocos2d::CCEvent* eventInfo) {}
-	virtual void extendedKeyUp(cocos2d::enumKeyCodes key, cocos2d::CCEvent* eventInfo) {}
-};
-
 struct ExtendedCCKeyboardDispatcher : geode::Modify<ExtendedCCKeyboardDispatcher, cocos2d::CCKeyboardDispatcher> {
 	// there's only one keyboard dispatcher ever and we can't really add new fields
-	static std::unordered_set<ExtendedKeyboardDelegate*> g_extendedInputDelegates;
 	static std::uint64_t g_lastTimestamp;
-
-	static void addDelegate(ExtendedKeyboardDelegate*);
-	static void removeDelegate(ExtendedKeyboardDelegate*);
-
 	static void setTimestamp(std::uint64_t);
+
+	// this part is a little not ideal, but it's very hard to add a new parameter to the game
+	// (unless you were robtop, then this custom delegate thing wouldn't be necessary)
+	static cocos2d::CCEvent* g_currentEventInfo;
+	static cocos2d::CCEvent* getCurrentEventInfo();
 
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isKeyDown, bool isKeyRepeat);
 };
