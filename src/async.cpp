@@ -3,26 +3,22 @@
 #define DEBUG_PROCESSING false
 
 void AsyncUILayer::handleKeypress(cocos2d::enumKeyCodes key, bool down) {
-	// check if it came from the normal callback, which we're ignoring
-	// there's probably a better way to do this but i'm lazy
 	auto event = ExtendedCCKeyboardDispatcher::getCurrentEventInfo();
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
 	UILayer::handleKeypress(key, down);
+	m_fields->m_lastTimestamp = 0ull;
 }
 
 bool AsyncUILayer::ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
-	if (!UILayer::ccTouchBegan(touch, event)) {
-		m_fields->m_lastTimestamp = 0ull;
-		return false;
-	}
-
+	auto r = UILayer::ccTouchBegan(touch, event);
 	m_fields->m_lastTimestamp = 0ull;
-	return true;
+
+	return r;
 }
 
 void AsyncUILayer::ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
