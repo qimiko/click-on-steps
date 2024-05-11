@@ -4,6 +4,9 @@
 		"mac": "2.200"
 	},
 	"version": "v1.0.0",
+	"tags": [
+		"gameplay", "performance", "enhancement"
+	],
 	"id": "zmx.cbf-lite",
 	"name": "Click on Steps",
 	"developer": "zmx",
