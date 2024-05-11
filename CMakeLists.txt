@@ -14,6 +14,7 @@ set(MOD_SOURCES
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     set(MOD_SOURCES ${MOD_SOURCES} src/macos.mm)
+    set_source_files_properties(src/macos.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 else()
     message(FATAL_ERROR "Unsupported mod platform :(")
 endif()
