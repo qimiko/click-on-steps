@@ -1,0 +1,12 @@
+{
+	"geode": "2.0.0-beta.25",
+	"gd": {
+		"mac": "2.200"
+	},
+	"version": "v1.0.0",
+	"id": "zmx.cbf-lite",
+	"name": "Click on Steps",
+	"developer": "zmx",
+	"description": "Click between frames, but without the physics bypass.",
+	"repository": "https://github.com/qimiko/click-on-steps"
+}
