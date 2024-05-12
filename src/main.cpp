@@ -116,12 +116,6 @@ void CustomGJBaseGameLayer::update(float dt) {
 }
 
 void CustomGJBaseGameLayer::processCommands(float timeStep) {
-	auto isDead = this->m_isDead;
-	if (isDead) {
-		// if player is dead, then function returns early
-		return GJBaseGameLayer::processCommands(timeStep);
-	}
-
 	auto timeWarp = m_gameState.m_timeWarp;
 	m_fields->m_timeOffset += timeStep / timeWarp;
 
