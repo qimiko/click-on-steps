@@ -19,7 +19,11 @@ struct AsyncUILayer : geode::Modify<AsyncUILayer, UILayer> {
 	bool ccTouchBegan(cocos2d::CCTouch*, cocos2d::CCEvent*);
 	void ccTouchMoved(cocos2d::CCTouch*, cocos2d::CCEvent*);
 	void ccTouchEnded(cocos2d::CCTouch*, cocos2d::CCEvent*);
+
+#ifndef GEODE_IS_WINDOWS
+	// on windows this callback is merged with other classes (it just calls ccTouchEnded)
 	void ccTouchCancelled(cocos2d::CCTouch*, cocos2d::CCEvent*);
+#endif
 
 	std::uint64_t getLastTimestamp();
 };

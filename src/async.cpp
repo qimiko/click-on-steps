@@ -37,6 +37,7 @@ void AsyncUILayer::ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 	m_fields->m_lastTimestamp = 0ull;
 }
 
+#ifndef GEODE_IS_WINDOWS
 void AsyncUILayer::ccTouchCancelled(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
@@ -44,6 +45,7 @@ void AsyncUILayer::ccTouchCancelled(cocos2d::CCTouch* touch, cocos2d::CCEvent* e
 	UILayer::ccTouchCancelled(touch, event);
 	m_fields->m_lastTimestamp = 0ull;
 }
+#endif
 
 std::uint64_t AsyncUILayer::getLastTimestamp() {
 	return m_fields->m_lastTimestamp;
