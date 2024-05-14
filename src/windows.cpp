@@ -204,8 +204,8 @@ public:
 
 struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, cocos2d::CCKeyboardDispatcher> {
 	static void onModify(auto& self) {
-		// this is the most likely to be overwritten by another mod and it would be really bad if that other mod got to it first
-		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", 10000);
+		// this is the most likely to be called before by another mod and it would be really bad if that other mod got to it first
+		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", -10000);
 	}
 	
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isDown, bool isRepeat) {
@@ -229,6 +229,10 @@ int* s_iFrameCounter = nullptr;
 float* s_fFrameTime = nullptr;
 
 struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCApplication> {
+	static void onModify(auto& self) {
+		(void)self.setHookPriority("cocos2d::CCApplication::run", 5000);
+	}
+
 	// while this function is unused, i thought it'd be good to keep it for reference purposes
 	int runSingleThreaded() {
 		// setup hidden function pointers
@@ -378,6 +382,8 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		this->setupVerticalSync();
 		this->updateVerticalSync();
 
+		// might be good to try moving this to the render thread (this can't actually fail anyways)
+		// last time i did, some things failed to load
 		if (!this->applicationDidFinishLaunching()) {
 			return 0;
 		}
@@ -399,22 +405,9 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 
 		while (true) {
 			if (glView->windowShouldClose()) {
-				if (!this->m_bShutdownCalled) {
-					cocos2d::CCApplication::sharedApplication()->trySaveGame(false);
-				}
-
-				if (glView->isOpenGLReady()) {
-					director->end();
-
-					reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
-				}
-
-				glView->release();
-
-				cocos2d::CCApplication::sharedApplication()->platformShutdown();
-
 				render_loop.join();
-				return 1;
+				glView->release();
+				return 0;
 			}
 
 			LARGE_INTEGER currentTime;
@@ -469,6 +462,18 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 
 		while (true) {
 			if (glView->windowShouldClose()) {
+				if (!this->m_bShutdownCalled) {
+					cocos2d::CCApplication::sharedApplication()->trySaveGame(false);
+				}
+
+				if (glView->isOpenGLReady()) {
+					director->end();
+
+					reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
+				}
+
+				cocos2d::CCApplication::sharedApplication()->platformShutdown();
+
 				return;
 			}
 
