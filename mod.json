@@ -1,9 +1,11 @@
 {
 	"geode": "2.0.0-beta.25",
 	"gd": {
-		"mac": "2.200"
+		"mac": "2.200",
+		"win": "2.204"
 	},
 	"version": "v1.0.0",
+	"early-load": true,
 	"tags": [
 		"gameplay", "performance", "enhancement"
 	],
