@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include "async.hpp"
+#include "input.hpp"
 
 #define DEBUG_STEPS false
 
@@ -16,12 +17,27 @@ inline T get_from_offset(void* base, unsigned int offset) {
 };
 #endif
 
+// get timestamp, but with custom keybinds (or similar mods) compatibility
+std::uint64_t getTimestampCompat() {
+	auto event = ExtendedCCKeyboardDispatcher::getCurrentEventInfo();
+	if (!event) {
+		return 0;
+	}
+
+	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
+	return extendedInfo->getTimestamp();
+}
+
 void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlayer) {
 	// this is another workaround for it not being very easy to pass arguments to things
 	// oh well, ig
 
 	auto inputTimestamp = static_cast<AsyncUILayer*>(this->m_uiLayer)->getLastTimestamp();
 	auto timeRelativeBegin = this->m_fields->m_timeBeginMs;
+
+	if (!inputTimestamp) {
+		inputTimestamp = getTimestampCompat();
+	}
 
 	auto currentTime = inputTimestamp - timeRelativeBegin;
 	if (inputTimestamp < timeRelativeBegin || !inputTimestamp || !timeRelativeBegin) {

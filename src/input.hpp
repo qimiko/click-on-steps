@@ -32,13 +32,23 @@ struct ExtendedCCKeyboardDispatcher : geode::Modify<ExtendedCCKeyboardDispatcher
 	static cocos2d::CCEvent* g_currentEventInfo;
 	static cocos2d::CCEvent* getCurrentEventInfo();
 
+	static void onModify(auto& self) {
+		// custom keybinds compat
+		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", -1000);
+	}
+
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isKeyDown, bool isKeyRepeat);
 };
 
 // all this has to do is add the timestamp to the event
 struct ExtendedCCTouchDispatcher : geode::Modify<ExtendedCCTouchDispatcher, cocos2d::CCTouchDispatcher> {
 	static std::uint64_t g_lastTimestamp;
-
 	static void setTimestamp(std::uint64_t);
+
+	static void onModify(auto& self) {
+		// future proofing, ig
+		(void)self.setHookPriority("cocos2d::CCTouchDispatcher::touches", -1000);
+	}
+
 	void touches(cocos2d::CCSet* pTouches, cocos2d::CCEvent* pEvent, unsigned int uIndex);
 };

@@ -14,6 +14,10 @@ cocos2d::CCEvent* ExtendedCCKeyboardDispatcher::getCurrentEventInfo() {
 };
 
 bool ExtendedCCKeyboardDispatcher::dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isKeyDown, bool isKeyRepeat) {
+#if DEBUG_DISPATCH
+	geode::log::debug("dispatch keyboard event with time {}", g_lastTimestamp);
+#endif
+
 	g_currentEventInfo = new ExtendedCCEvent(g_lastTimestamp);
 
 	auto r = CCKeyboardDispatcher::dispatchKeyboardMSG(key, isKeyDown, isKeyRepeat);
