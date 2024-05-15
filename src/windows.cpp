@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <condition_variable>
 
 #include "input.hpp"
 
@@ -33,7 +34,13 @@ std::uint64_t platform_get_time() {
 // windows is unfortunately a very outdated platform and requires us to track inputs ourselves
 // so um, enjoy this code to track inputs ourselves. i suppose
 
-struct CustomCCEGLView;
+void (*PVRFrameEnableControlWindow)(bool enable);
+void (__thiscall *updateControllerState)(CXBOXController*);
+void (*ptr_glfwMakeContextCurrent)(GLFWwindow*);
+
+LARGE_INTEGER* s_nTimeElapsed = nullptr;
+int* s_iFrameCounter = nullptr;
+float* s_fFrameTime = nullptr;
 
 class GameEvent {
 protected:
@@ -45,7 +52,7 @@ public:
 	}
 
 	virtual ~GameEvent() = default;
-	virtual void dispatch(CustomCCEGLView*) = 0;
+	virtual void dispatch() = 0;
 };
 
 struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
@@ -54,11 +61,18 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 	static CustomCCEGLView* g_self;
 	static DWORD g_mainThreadId;
 	static DWORD g_renderingThreadId;
+	static std::condition_variable g_fullscreenVariable;
+	static std::mutex g_fullscreenMutex;
+	static bool g_needsSwitchFullscreen;
 
 	static GLFWkeyfun g_keyCallback;
 	static GLFWmousebuttonfun g_mouseCallback;
 	static GLFWcursorposfun g_cursorPosCallback;
 	static GLFWscrollfun g_scrollCallback;
+	static GLFWcharfun g_charCallback;
+	static GLFWwindowposfun g_windowPosCallback;
+	static GLFWwindowsizefun g_windowSizeCallback;
+	static GLFWwindowiconifyfun g_windowIconifyCallback;
 
 	void queueEvent(GameEvent* event) {
 		std::scoped_lock lock(g_eventMutex);		
@@ -69,7 +83,7 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		std::scoped_lock lock(g_eventMutex);
 		while (!g_events.empty()) {
 			auto nextEvent = g_events.front();
-			nextEvent->dispatch(this);
+			nextEvent->dispatch();
 			
 			g_events.pop();
 			delete nextEvent;
@@ -80,17 +94,31 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 	static void onCustomGLFWMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 	static void onCustomGLFWCursorPosCallback(GLFWwindow* window, double xPos, double yPos);
 	static void onCustomGLFWScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
+	static void onCustomGLFWCharCallback(GLFWwindow* window, unsigned int codepoint);
+	static void onCustomGLFWWindowPosCallback(GLFWwindow* window, int xPos, int yPos);
+	static void onCustomGLFWWindowSizeCallback(GLFWwindow* window, int width, int height);
+	static void onCustomGLFWWindowIconifyCallback(GLFWwindow* window, int status);
 
 	void setupWindow(cocos2d::CCRect size) {
 		CCEGLView::setupWindow(size);
-		
+
 		// override some of rob's event callbacks here
 		auto window = this->m_pMainWindow;
 		g_self = this;
 		g_mouseCallback = reinterpret_cast<decltype(&glfwSetMouseButtonCallback)>(geode::base::getCocos() + 0x116fa0)(window, &onCustomGLFWMouseButtonCallback);
 		g_cursorPosCallback = reinterpret_cast<decltype(&glfwSetCursorPosCallback)>(geode::base::getCocos() + 0x116e20)(window, &onCustomGLFWCursorPosCallback);
 		g_scrollCallback = reinterpret_cast<decltype(&glfwSetScrollCallback)>(geode::base::getCocos() + 0x116fe0)(window, &onCustomGLFWScrollCallback);
+		g_charCallback = reinterpret_cast<decltype(&glfwSetCharCallback)>(geode::base::getCocos() + 0x116da0)(window, &onCustomGLFWCharCallback);
 		g_keyCallback = reinterpret_cast<decltype(&glfwSetKeyCallback)>(geode::base::getCocos() + 0x116f60)(window, &onCustomGLFWKeyCallback);
+		g_windowPosCallback = reinterpret_cast<decltype(&glfwSetWindowPosCallback)>(geode::base::getCocos() + 0x116760)(window, &onCustomGLFWWindowPosCallback);
+		// -- framebuffer size callback (should be safe)
+		// this one calls some glfw methods and opengl methods, but it seems to be more unsafe when the glfw methods are run on the rendering thread
+		// so it may need a full rewrite 🥲
+		// g_windowSizeCallback = reinterpret_cast<decltype(&glfwSetWindowSizeCallback)>(geode::base::getCocos() + 0x116820)(window, &onCustomGLFWWindowSizeCallback);
+		// -- unknown callback (stub)
+		// -- device change callback (should be safe)
+		g_windowIconifyCallback = reinterpret_cast<decltype(&glfwSetWindowIconifyCallback)>(geode::base::getCocos() + 0x116720)(window, &onCustomGLFWWindowIconifyCallback);
+		// -- cursor enter callback (should be safe)
 	}
 };
 
@@ -99,11 +127,18 @@ std::mutex CustomCCEGLView::g_eventMutex{};
 CustomCCEGLView* CustomCCEGLView::g_self = nullptr;
 DWORD CustomCCEGLView::g_mainThreadId = 0;
 DWORD CustomCCEGLView::g_renderingThreadId = 0;
+std::condition_variable CustomCCEGLView::g_fullscreenVariable{};
+std::mutex CustomCCEGLView::g_fullscreenMutex{};
+bool CustomCCEGLView::g_needsSwitchFullscreen = false;
 
 GLFWkeyfun CustomCCEGLView::g_keyCallback = nullptr;
 GLFWmousebuttonfun CustomCCEGLView::g_mouseCallback = nullptr;
 GLFWcursorposfun CustomCCEGLView::g_cursorPosCallback = nullptr;
 GLFWscrollfun CustomCCEGLView::g_scrollCallback = nullptr;
+GLFWcharfun CustomCCEGLView::g_charCallback = nullptr;
+GLFWwindowposfun CustomCCEGLView::g_windowPosCallback = nullptr;
+GLFWwindowsizefun CustomCCEGLView::g_windowSizeCallback = nullptr;
+GLFWwindowiconifyfun CustomCCEGLView::g_windowIconifyCallback = nullptr;
 
 class KeyEvent : public GameEvent {
 	GLFWwindow* window;
@@ -113,7 +148,7 @@ class KeyEvent : public GameEvent {
 	int mods;
 
 public:
-	virtual void dispatch(CustomCCEGLView* view) override {
+	virtual void dispatch() override {
 		ExtendedCCKeyboardDispatcher::setTimestamp(timestamp);
 		CustomCCEGLView::g_keyCallback(window, key, scancode, action, mods);
 	}
@@ -134,7 +169,7 @@ class MouseEvent : public GameEvent {
 	int mods;
 
 public:
-	virtual void dispatch(CustomCCEGLView* view) override {
+	virtual void dispatch() override {
 		ExtendedCCTouchDispatcher::setTimestamp(timestamp);
 		CustomCCEGLView::g_mouseCallback(window, button, action, mods);
 	}
@@ -153,7 +188,7 @@ class CursorPosEvent : public GameEvent {
 	double xPos;
 	double yPos;
 public:
-	virtual void dispatch(CustomCCEGLView* view) override {
+	virtual void dispatch() override {
 		ExtendedCCTouchDispatcher::setTimestamp(timestamp);
 		CustomCCEGLView::g_cursorPosCallback(window, xPos, yPos);
 	}
@@ -167,13 +202,12 @@ void CustomCCEGLView::onCustomGLFWCursorPosCallback(GLFWwindow* window, double x
 	g_self->queueEvent(event);
 }
 
-
 class ScrollEvent : public GameEvent {
 	GLFWwindow* window;
 	double xOffset;
 	double yOffset;
 public:
-	virtual void dispatch(CustomCCEGLView* view) override {
+	virtual void dispatch() override {
 		CustomCCEGLView::g_scrollCallback(window, xOffset, yOffset);
 	}
 
@@ -186,6 +220,77 @@ void CustomCCEGLView::onCustomGLFWScrollCallback(GLFWwindow* window, double xOff
 	g_self->queueEvent(event);
 }
 
+class CharEvent : public GameEvent {
+	GLFWwindow* window;
+	unsigned int codepoint;
+public:
+	virtual void dispatch() override {
+		// this primarily goes into the imedispatcher, which doesn't have timestamps
+		CustomCCEGLView::g_charCallback(window, codepoint);
+	}
+
+	CharEvent(GLFWwindow* window, unsigned int codepoint)
+		: window(window), codepoint(codepoint) {}
+};
+
+void CustomCCEGLView::onCustomGLFWCharCallback(GLFWwindow* window, unsigned int codepoint) {
+	auto event = new CharEvent(window, codepoint);
+	g_self->queueEvent(event);
+}
+
+class WindowPosEvent : public GameEvent {
+	GLFWwindow* window;
+	int xPos;
+	int yPos;
+public:
+	virtual void dispatch() override {
+		CustomCCEGLView::g_windowPosCallback(window, xPos, yPos);
+	}
+
+	WindowPosEvent(GLFWwindow* window, int xPos, int yPos)
+		: window(window), xPos(xPos), yPos(yPos) {}
+};
+
+void CustomCCEGLView::onCustomGLFWWindowPosCallback(GLFWwindow* window, int xPos, int yPos) {
+	auto event = new WindowPosEvent(window, xPos, yPos);
+	g_self->queueEvent(event);
+}
+
+class WindowSizeEvent : public GameEvent {
+	GLFWwindow* window;
+	int width;
+	int height;
+public:
+	virtual void dispatch() override {
+		CustomCCEGLView::g_windowSizeCallback(window, width, height);
+	}
+
+	WindowSizeEvent(GLFWwindow* window, int width, int height)
+		: window(window), width(width), height(height) {}
+};
+
+void CustomCCEGLView::onCustomGLFWWindowSizeCallback(GLFWwindow* window, int width, int height) {
+	auto event = new WindowSizeEvent(window, width, height);
+	g_self->queueEvent(event);
+}
+
+class IconifyEvent : public GameEvent {
+	GLFWwindow* window;
+	int status;
+public:
+	virtual void dispatch() override {
+		CustomCCEGLView::g_windowIconifyCallback(window, status);
+	}
+
+	IconifyEvent(GLFWwindow* window, int status)
+		: window(window), status(status) {}
+};
+
+void CustomCCEGLView::onCustomGLFWWindowIconifyCallback(GLFWwindow* window, int status) {
+	auto event = new IconifyEvent(window, status);
+	g_self->queueEvent(event);
+}
+
 // this event is primarily for controllers, if dispatchKeyboardMSG is called from the main thread
 class ManualKeyboardEvent : public GameEvent {
 	cocos2d::enumKeyCodes key;
@@ -193,7 +298,7 @@ class ManualKeyboardEvent : public GameEvent {
 	bool isRepeat;
 
 public:
-	virtual void dispatch(CustomCCEGLView* view) override {
+	virtual void dispatch() override {
 		ExtendedCCKeyboardDispatcher::setTimestamp(timestamp);
 		cocos2d::CCDirector::sharedDirector()->getKeyboardDispatcher()->dispatchKeyboardMSG(key, isDown, isRepeat);
 	}
@@ -219,14 +324,6 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 		return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isDown, isRepeat);
 	}
 };
-
-void (*PVRFrameEnableControlWindow)(bool enable);
-void (__thiscall *updateControllerState)(CXBOXController*);
-void (*ptr_glfwMakeContextCurrent)(GLFWwindow*);
-
-LARGE_INTEGER* s_nTimeElapsed = nullptr;
-int* s_iFrameCounter = nullptr;
-float* s_fFrameTime = nullptr;
 
 struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCApplication> {
 	static void onModify(auto& self) {
@@ -407,7 +504,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			if (glView->windowShouldClose()) {
 				render_loop.join();
 				glView->release();
-				return 0;
+				return 1;
 			}
 
 			LARGE_INTEGER currentTime;
