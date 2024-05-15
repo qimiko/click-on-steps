@@ -77,17 +77,23 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 	static GLFWwindowiconifyfun g_windowIconifyCallback;
 
 	void queueEvent(GameEvent* event) {
-		std::scoped_lock lock(g_eventMutex);		
+		std::scoped_lock lock(g_eventMutex);
 		g_events.push(event);
 	}
 
 	void dumpEventQueue() {
-		std::scoped_lock lock(g_eventMutex);
-		while (!g_events.empty()) {
-			auto nextEvent = g_events.front();
+		// do as little as possible with the mutex locked
+		std::queue<GameEvent*> currentEvents{};
+		{
+			std::scoped_lock lock(g_eventMutex);
+			g_events.swap(currentEvents);
+		}
+
+		while (!currentEvents.empty()) {
+			auto nextEvent = currentEvents.front();
 			nextEvent->dispatch();
-			
-			g_events.pop();
+
+			currentEvents.pop();
 			delete nextEvent;
 		}
 	}
@@ -344,7 +350,7 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 		// this is the most likely to be called before by another mod and it would be really bad if that other mod got to it first
 		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", -10000);
 	}
-	
+
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isDown, bool isRepeat) {
 		if (GetCurrentThreadId() != CustomCCEGLView::g_renderingThreadId) {
 			// queue our event
@@ -352,7 +358,7 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 			CustomCCEGLView::g_self->queueEvent(event);
 			return true;
 		}
-		
+
 		return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isDown, isRepeat);
 	}
 };
@@ -577,7 +583,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			std::this_thread::yield();
 		}
 	}
-	
+
 	void glLoop() {
 		geode::utils::thread::setName("Render");
 		CustomCCEGLView::g_renderingThreadId = GetCurrentThreadId();
