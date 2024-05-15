@@ -45,6 +45,12 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 		currentTime = 0;
 	}
 
+	// if time == 0, behavior should be equivalent to the original queuebutton (inserted immediately)
+	// we do this to support android, which has an unstable gd::vector::push_back
+	if (currentTime == 0) {
+		return GJBaseGameLayer::queueButton(btnType, push, secondPlayer);
+	}
+
 #if DEBUG_STEPS
 	geode::log::debug("queueing input type={} down={} p2={} at time {}", btnType, push, secondPlayer, currentTime);
 #endif
@@ -96,7 +102,8 @@ void CustomGJBaseGameLayer::processTimedInputs() {
 
 			// in this case, we push our handled inputs into the queue for the game to handle afterwards
 			// again, unnecessary if you could rewrite processQueuedButtons
-			this->m_queuedButtons.push_back(btn);
+			queueButton(static_cast<int>(btn.m_button), btn.m_isPush, btn.m_isPlayer2);
+			//this->m_queuedButtons.push_back(btn);
 
 			if (!commands.empty()) {
 				nextTime = commands.front().m_step;
@@ -118,7 +125,8 @@ void CustomGJBaseGameLayer::dumpInputQueue() {
 		);
 #endif
 
-		this->m_queuedButtons.push_back(btn);
+		queueButton(static_cast<int>(btn.m_button), btn.m_isPush, btn.m_isPlayer2);
+		//this->m_queuedButtons.push_back(btn);
 	}
 }
 
