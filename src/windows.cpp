@@ -64,6 +64,8 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 	static std::condition_variable g_fullscreenVariable;
 	static std::mutex g_fullscreenMutex;
 	static bool g_needsSwitchFullscreen;
+	static bool g_switchToFullscreen;
+	static bool g_switchToBorderless;
 
 	static GLFWkeyfun g_keyCallback;
 	static GLFWmousebuttonfun g_mouseCallback;
@@ -120,6 +122,34 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		g_windowIconifyCallback = reinterpret_cast<decltype(&glfwSetWindowIconifyCallback)>(geode::base::getCocos() + 0x116720)(window, &onCustomGLFWWindowIconifyCallback);
 		// -- cursor enter callback (should be safe)
 	}
+
+	void toggleFullScreen(bool fullscreen, bool borderless) {
+		// this one's pretty good
+		// what we must do:
+		// - run setupwindow in the main thread
+		// - unset the main thread's context (again)
+		// - set the rendering thread's context back
+
+		if (GetCurrentThreadId() != g_mainThreadId) {
+			ptr_glfwMakeContextCurrent(nullptr);
+
+			std::unique_lock fsLock(g_fullscreenMutex);
+			g_needsSwitchFullscreen = true;
+			g_switchToFullscreen = fullscreen;
+			g_switchToBorderless = borderless;
+
+			g_fullscreenVariable.wait(fsLock, []{ return !g_needsSwitchFullscreen; });
+
+			ptr_glfwMakeContextCurrent(this->m_pMainWindow);
+			fsLock.unlock();
+
+			return;
+		}
+
+		ptr_glfwMakeContextCurrent(this->m_pMainWindow);
+		CCEGLView::toggleFullScreen(fullscreen, borderless);
+		ptr_glfwMakeContextCurrent(nullptr);
+	}
 };
 
 std::queue<GameEvent*> CustomCCEGLView::g_events{};
@@ -130,6 +160,8 @@ DWORD CustomCCEGLView::g_renderingThreadId = 0;
 std::condition_variable CustomCCEGLView::g_fullscreenVariable{};
 std::mutex CustomCCEGLView::g_fullscreenMutex{};
 bool CustomCCEGLView::g_needsSwitchFullscreen = false;
+bool CustomCCEGLView::g_switchToFullscreen = false;
+bool CustomCCEGLView::g_switchToBorderless = false;
 
 GLFWkeyfun CustomCCEGLView::g_keyCallback = nullptr;
 GLFWmousebuttonfun CustomCCEGLView::g_mouseCallback = nullptr;
@@ -512,6 +544,17 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 
 			if (currentTime.QuadPart - lastTime.QuadPart < interval) {
 				continue;
+			}
+
+			{
+				// determine if we need to switch the fullscreen status
+				// there's probably a better way to do this, but i'm lazy
+				std::lock_guard fsLock(CustomCCEGLView::g_fullscreenMutex);
+				if (CustomCCEGLView::g_needsSwitchFullscreen) {
+					glView->toggleFullScreen(CustomCCEGLView::g_switchToFullscreen, CustomCCEGLView::g_switchToBorderless);
+					CustomCCEGLView::g_needsSwitchFullscreen = false;
+					CustomCCEGLView::g_fullscreenVariable.notify_all();
+				}
 			}
 
 			// perform the input things
