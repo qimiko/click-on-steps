@@ -511,12 +511,6 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		this->setupVerticalSync();
 		this->updateVerticalSync();
 
-		// might be good to try moving this to the render thread (this can't actually fail anyways)
-		// last time i did, some things failed to load
-		if (!this->applicationDidFinishLaunching()) {
-			return 0;
-		}
-
 		this->m_bFullscreen = glView->m_bIsFullscreen;
 
 		LARGE_INTEGER lastTime;
@@ -593,6 +587,12 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		auto customGlView = static_cast<CustomCCEGLView*>(glView);
 
 		ptr_glfwMakeContextCurrent(glView->getWindow());
+
+		// this call can never return false anyways
+		if (!this->applicationDidFinishLaunching()) {
+			glView->end();
+			return;
+		}
 
 		auto isFullscreen = glView->m_bIsFullscreen;
 
