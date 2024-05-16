@@ -571,8 +571,8 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 				std::lock_guard fsLock(CustomCCEGLView::g_fullscreenMutex);
 				if (CustomCCEGLView::g_needsSwitchFullscreen) {
 					glView->toggleFullScreen(CustomCCEGLView::g_switchToFullscreen, CustomCCEGLView::g_switchToBorderless);
-					CustomCCEGLView::g_needsSwitchFullscreen = false;
 					CustomCCEGLView::g_fullscreenVariable.notify_all();
+					CustomCCEGLView::g_needsSwitchFullscreen = false;
 				}
 			}
 
