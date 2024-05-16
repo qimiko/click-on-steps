@@ -174,7 +174,6 @@ void PlayerButtonCommand_emplaceBack(gd::vector<PlayerButtonCommand>* self, Play
 	}
 
 	baseLayer->queueButton(static_cast<int>(obj->m_button), obj->m_isPush, obj->m_isPlayer2);
-	delete obj;
 }
 
 $execute {
