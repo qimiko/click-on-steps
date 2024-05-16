@@ -37,6 +37,8 @@ std::uint64_t platform_get_time() {
 void (*PVRFrameEnableControlWindow)(bool enable);
 void (__thiscall *updateControllerState)(CXBOXController*);
 void (*ptr_glfwMakeContextCurrent)(GLFWwindow*);
+void (*ptr_glfwCustomAdjustWindowSize)(GLFWwindow*, int width, int height);
+void (*ptr_glfwGetWindowSize)(GLFWwindow*, int* width, int* height);
 
 LARGE_INTEGER* s_nTimeElapsed = nullptr;
 int* s_iFrameCounter = nullptr;
@@ -120,9 +122,8 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		g_keyCallback = reinterpret_cast<decltype(&glfwSetKeyCallback)>(geode::base::getCocos() + 0x116f60)(window, &onCustomGLFWKeyCallback);
 		g_windowPosCallback = reinterpret_cast<decltype(&glfwSetWindowPosCallback)>(geode::base::getCocos() + 0x116760)(window, &onCustomGLFWWindowPosCallback);
 		// -- framebuffer size callback (should be safe)
-		// this one calls some glfw methods and opengl methods, but it seems to be more unsafe when the glfw methods are run on the rendering thread
-		// so it may need a full rewrite 🥲
-		// g_windowSizeCallback = reinterpret_cast<decltype(&glfwSetWindowSizeCallback)>(geode::base::getCocos() + 0x116820)(window, &onCustomGLFWWindowSizeCallback);
+		// this one calls some glfw methods and opengl methods so it needs a full rewrite 🥲
+		g_windowSizeCallback = reinterpret_cast<decltype(&glfwSetWindowSizeCallback)>(geode::base::getCocos() + 0x116820)(window, &onCustomGLFWWindowSizeCallback);
 		// -- unknown callback (stub)
 		// -- device change callback (should be safe)
 		g_windowIconifyCallback = reinterpret_cast<decltype(&glfwSetWindowIconifyCallback)>(geode::base::getCocos() + 0x116720)(window, &onCustomGLFWWindowIconifyCallback);
@@ -137,16 +138,15 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		// - set the rendering thread's context back
 
 		if (GetCurrentThreadId() != g_mainThreadId) {
-			ptr_glfwMakeContextCurrent(nullptr);
-
 			std::unique_lock fsLock(g_fullscreenMutex);
 			g_needsSwitchFullscreen = true;
 			g_switchToFullscreen = fullscreen;
 			g_switchToBorderless = borderless;
 
+			ptr_glfwMakeContextCurrent(nullptr);
 			g_fullscreenVariable.wait(fsLock, []{ return !g_needsSwitchFullscreen; });
-
 			ptr_glfwMakeContextCurrent(this->m_pMainWindow);
+
 			fsLock.unlock();
 
 			return;
@@ -155,6 +155,14 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		ptr_glfwMakeContextCurrent(this->m_pMainWindow);
 		CCEGLView::toggleFullScreen(fullscreen, borderless);
 		ptr_glfwMakeContextCurrent(nullptr);
+	}
+
+	// remake of CCEGLViewProtocol::setFrameSize, for the resize callback. because CCEGLView::setFrameSize is scary and virtual
+	void protocolSetFrameSize(float width, float height) {
+		auto frameSize = cocos2d::CCSize(width, height);
+
+		m_obDesignResolutionSize = frameSize;
+		m_obScreenSize = frameSize;
 	}
 };
 
@@ -300,7 +308,13 @@ class WindowSizeEvent : public GameEvent {
 	int height;
 public:
 	virtual void dispatch() override {
-		CustomCCEGLView::g_windowSizeCallback(window, width, height);
+		CustomCCEGLView::g_self->protocolSetFrameSize(static_cast<float>(width), static_cast<float>(height));
+		cocos2d::CCDirector::sharedDirector()->updateScreenScale({
+			static_cast<float>(width),
+			static_cast<float>(height)
+		});
+		cocos2d::CCDirector::sharedDirector()->setViewport();
+		cocos2d::CCDirector::sharedDirector()->setProjection(cocos2d::kCCDirectorProjection2D);
 	}
 
 	WindowSizeEvent(GLFWwindow* window, int width, int height)
@@ -308,6 +322,9 @@ public:
 };
 
 void CustomCCEGLView::onCustomGLFWWindowSizeCallback(GLFWwindow* window, int width, int height) {
+	ptr_glfwCustomAdjustWindowSize(window, width, height);
+	ptr_glfwGetWindowSize(window, &width, &height);
+
 	auto event = new WindowSizeEvent(window, width, height);
 	g_self->queueEvent(event);
 }
@@ -502,6 +519,8 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		PVRFrameEnableControlWindow = reinterpret_cast<decltype(PVRFrameEnableControlWindow)>(geode::base::getCocos() + 0xc4190);
 		updateControllerState = reinterpret_cast<decltype(updateControllerState)>(geode::base::getCocos() + 0xcb960);
 		ptr_glfwMakeContextCurrent = reinterpret_cast<decltype(ptr_glfwMakeContextCurrent)>(geode::base::getCocos() + 0x115580);
+		ptr_glfwCustomAdjustWindowSize = reinterpret_cast<decltype(ptr_glfwCustomAdjustWindowSize)>(geode::base::getCocos() + 0x116670);
+		ptr_glfwGetWindowSize = reinterpret_cast<decltype(ptr_glfwGetWindowSize)>(geode::base::getCocos() + 0x116590);
 
 		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5a80);
 		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5a7c);
