@@ -2,12 +2,14 @@
 #include <Geode/modify/CCApplication.hpp>
 #include <Geode/modify/CCEGLView.hpp>
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
+#include <Geode/modify/CCDirector.hpp>
 
 #include <Windows.h>
 #include <thread>
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <atomic>
 
 #include "input.hpp"
 
@@ -380,6 +382,8 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 	}
 };
 
+std::atomic_uint32_t g_inputTps{};
+
 struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCApplication> {
 	static void onModify(auto& self) {
 		(void)self.setHookPriority("cocos2d::CCApplication::run", 5000);
@@ -542,12 +546,17 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		QueryPerformanceCounter(&lastTime);
 
 		// run input polling at 1000hz
-		// TODO: this _might_ have to be dynamic. what happens if the rendering thread is > 1000fps?
+		// TODO: this _might_ have to be dynamic
+		double updateRate = 1.0 / 1000.0;
 		auto freq = query_performance_frequency();
-		auto interval = static_cast<std::uint64_t>(freq / 1000);
+		double dFreq = freq;
+		auto interval = static_cast<std::uint64_t>(freq * updateRate);
 
 		CustomCCEGLView::g_mainThreadId = GetCurrentThreadId();
 		ptr_glfwMakeContextCurrent(nullptr);
+
+		auto inputFrames = 0u;
+		auto inputTime = 0.0f;
 
 		std::thread render_loop(&CustomCCApplication::glLoop, this);
 
@@ -561,7 +570,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			LARGE_INTEGER currentTime;
 			QueryPerformanceCounter(&currentTime);
 
-			if (currentTime.QuadPart - lastTime.QuadPart < interval) {
+			if (currentTime.QuadPart - lastTime.QuadPart <= interval) {
 				continue;
 			}
 
@@ -594,6 +603,17 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 
 			if (player2Controller->m_controllerConnected) {
 				this->updateControllerKeys(player2Controller, 2);
+			}
+
+			auto dt = (static_cast<double>(currentTime.QuadPart) - static_cast<double>(lastTime.QuadPart)) / dFreq;
+
+			inputFrames++;
+			inputTime += dt;
+
+			if (inputTime > 0.5f) {
+				g_inputTps = inputFrames / inputTime;
+				inputFrames = 0;
+				inputTime = 0.0f;
 			}
 
 			glView->pollEvents();
@@ -657,7 +677,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			QueryPerformanceCounter(&currentTime);
 			*s_nTimeElapsed = currentTime;
 
-			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
+			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart <= interval.QuadPart) {
 		 		continue;
 			 }
 
@@ -696,6 +716,19 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			director->setDeltaTime(dt);
 			director->setActualDeltaTime(actualDeltaTime);
 			reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
+		}
+	}
+};
+
+struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
+	void showFPSLabel() {
+		auto willUpdate = m_pFPSNode && (m_fFpsAccumDt + m_fDeltaTime > 0.1f);
+		CCDirector::showFPSLabel();
+
+		if (willUpdate) {
+			auto fpsLabel = fmt::format("FPS: {:.0f}\nInput: {}", this->m_fFrameRate, g_inputTps);
+			this->m_pFPSNode->setString(fpsLabel.c_str());
+			this->m_pFPSNode->visit();
 		}
 	}
 };
