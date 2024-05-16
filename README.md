@@ -33,6 +33,13 @@ Most of the difficulty comes from not being RobTop, who can do things like add p
 This is what the code in `async.cpp` and `input.cpp` work around. `input.cpp` adds custom code to pass the timestamp from the event dispatchers to the `UILayer`. `async.cpp` then pulls that timestamp from the event and passes it to the `GJBaseGameLayer`.
 Platform specific hooks are used to pull timestamps to the input callbacks, which then gets injected into the event dispatchers.
 
+On Windows, step 1 is accomplished by separating the game into a rendering thread and a 1000hz input thread.
+Separating inputs from the rendering thread allows for receiving multiple inputs while the main update is processing, which can then be timestamped.
+Unfortunately, this also means input precision is only as precise as the input thread is.
+While this puts Windows at a disadvantage compared to other platforms, the fixed 240tps rate makes this very hard, if not impossible, to notice.
+A benefit of this approach (as opposed to continuously waiting for window messages in a new window) is that the controller now works!
+However, the chance of accidentally breaking the game by calling a method on the wrong thread is very high, as the game was never designed to handle this.
+
 Step 2 is done by `main.cpp`. An input, with timestamp, is received from our modified `UILayer`. The mod then takes this timestamp and determines when it happened, relative to the beginning of the frame. This input, and its timestamp, is stored inside a queue. During each step, the game checks if any inputs are queued and need processing. We add code just before this check, which calculates the current time of the step and determines which inputs from the mod's input queue should be handled. Those inputs are then moved to the game's input queue, to be processed by the game. This means that inputs made by the mod internally look identical to inputs made without the mod.
 
 In practice, the difference between vanilla GD running at 60hz and a game running this mod is that vanilla GD handles all queued inputs at the beginning of a frame (aka, step 0) while this can run queued inputs at the beginning of a step. On 240hz, each frame contains exactly one step, which is why the mod has no effect for players on that framerate.
@@ -45,5 +52,6 @@ To make the comparison easier, the fancy diagram skips a lot of detail. Sorry.
 
 ## Special Thanks
 
-- [mat](https://github.com/matcool) for the name
+- [mat](https://github.com/matcool) for the name and Windows testing
 - [ninXout](https://github.com/ninXout) for testing
+- [syzzi](https://github.com/theyareonit) for the original mod

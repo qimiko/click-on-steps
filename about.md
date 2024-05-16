@@ -17,7 +17,10 @@ This mod is made for players on lower end devices, or devices that don't perform
 
 See the README.md on the GitHub repository for more details.
 
+Windows support is experimental! Windowing issues may occur :(
+
 ## Special Thanks
 
-- [mat](https://github.com/matcool) for the name
+- [mat](https://github.com/matcool) for the name and Windows testing
 - [ninXout](https://github.com/ninXout) for testing
+- [syzzi](https://github.com/theyareonit) for the original mod concept

@@ -4,7 +4,7 @@
 		"mac": "2.200",
 		"win": "2.204"
 	},
-	"version": "v1.0.0",
+	"version": "v1.1.0",
 	"early-load": true,
 	"tags": [
 		"gameplay", "performance", "enhancement"
