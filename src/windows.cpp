@@ -3,6 +3,7 @@
 #include <Geode/modify/CCEGLView.hpp>
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
 #include <Geode/modify/CCDirector.hpp>
+#include <Geode/loader/SettingEvent.hpp>
 
 #include <Windows.h>
 #include <thread>
@@ -41,10 +42,18 @@ void (__thiscall *updateControllerState)(CXBOXController*);
 void (*ptr_glfwMakeContextCurrent)(GLFWwindow*);
 void (*ptr_glfwCustomAdjustWindowSize)(GLFWwindow*, int width, int height);
 void (*ptr_glfwGetWindowSize)(GLFWwindow*, int* width, int* height);
+HWND (*ptr_glfwGetWin32Window)(GLFWwindow*);
+
+// my reimplementation of glfwPostEmptyEvent();
+void postEmptyEvent(GLFWwindow* window) {
+	auto hwnd = ptr_glfwGetWin32Window(window);
+	PostMessage(hwnd, WM_NULL, 0, 0);
+}
 
 LARGE_INTEGER* s_nTimeElapsed = nullptr;
 int* s_iFrameCounter = nullptr;
 float* s_fFrameTime = nullptr;
+std::atomic_bool g_waitForMessages{};
 
 class GameEvent {
 protected:
@@ -145,6 +154,10 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 			g_switchToFullscreen = fullscreen;
 			g_switchToBorderless = borderless;
 
+			if (g_waitForMessages) {
+				postEmptyEvent(this->m_pMainWindow);
+			}
+
 			ptr_glfwMakeContextCurrent(nullptr);
 			g_fullscreenVariable.wait(fsLock, []{ return !g_needsSwitchFullscreen; });
 			ptr_glfwMakeContextCurrent(this->m_pMainWindow);
@@ -165,6 +178,15 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 
 		m_obDesignResolutionSize = frameSize;
 		m_obScreenSize = frameSize;
+	}
+
+	void end() {
+		if (g_waitForMessages) {
+			// post empty just before the mainwindow gets set to null
+			postEmptyEvent(this->m_pMainWindow);
+		}
+
+		CCEGLView::end();
 	}
 };
 
@@ -525,6 +547,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		ptr_glfwMakeContextCurrent = reinterpret_cast<decltype(ptr_glfwMakeContextCurrent)>(geode::base::getCocos() + 0x115580);
 		ptr_glfwCustomAdjustWindowSize = reinterpret_cast<decltype(ptr_glfwCustomAdjustWindowSize)>(geode::base::getCocos() + 0x116670);
 		ptr_glfwGetWindowSize = reinterpret_cast<decltype(ptr_glfwGetWindowSize)>(geode::base::getCocos() + 0x116590);
+		ptr_glfwGetWin32Window = reinterpret_cast<decltype(ptr_glfwGetWin32Window)>(geode::base::getCocos() + 0x117db0);
 
 		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5a80);
 		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5a7c);
@@ -561,6 +584,8 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		std::thread render_loop(&CustomCCApplication::glLoop, this);
 
 		while (true) {
+			bool waitForMessages = g_waitForMessages;
+
 			if (glView->windowShouldClose()) {
 				render_loop.join();
 				glView->release();
@@ -570,7 +595,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			LARGE_INTEGER currentTime;
 			QueryPerformanceCounter(&currentTime);
 
-			if (currentTime.QuadPart - lastTime.QuadPart <= interval) {
+			if (!waitForMessages && currentTime.QuadPart - lastTime.QuadPart <= interval) {
 				continue;
 			}
 
@@ -585,26 +610,30 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 				}
 			}
 
-			// perform the input things
-			if (this->m_bUpdateController) {
-				updateControllerState(this->m_pControllerHandler);
-				updateControllerState(this->m_pController2Handler);
-				this->m_bUpdateController = false;
+			// did you think i was going to make a "disable controller support" option without disabling controller support
+			if (!waitForMessages) {
+				// perform the input things
+				if (this->m_bUpdateController) {
+					updateControllerState(this->m_pControllerHandler);
+					updateControllerState(this->m_pController2Handler);
+					this->m_bUpdateController = false;
+				}
+
+				auto player1Controller = this->m_pControllerHandler;
+				auto player2Controller = this->m_pController2Handler;
+
+				this->m_bControllerConnected = player1Controller->m_controllerConnected || player2Controller->m_controllerConnected;
+
+				if (player1Controller->m_controllerConnected) {
+					this->updateControllerKeys(player1Controller, 1);
+				}
+
+				if (player2Controller->m_controllerConnected) {
+					this->updateControllerKeys(player2Controller, 2);
+				}
 			}
 
-			auto player1Controller = this->m_pControllerHandler;
-			auto player2Controller = this->m_pController2Handler;
-
-			this->m_bControllerConnected = player1Controller->m_controllerConnected || player2Controller->m_controllerConnected;
-
-			if (player1Controller->m_controllerConnected) {
-				this->updateControllerKeys(player1Controller, 1);
-			}
-
-			if (player2Controller->m_controllerConnected) {
-				this->updateControllerKeys(player2Controller, 2);
-			}
-
+			// fps is kinda meaningless with the other loop option, but whatever
 			auto dt = (static_cast<double>(currentTime.QuadPart) - static_cast<double>(lastTime.QuadPart)) / dFreq;
 
 			inputFrames++;
@@ -614,6 +643,11 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 				g_inputTps = inputFrames / inputTime;
 				inputFrames = 0;
 				inputTime = 0.0f;
+			}
+
+			// my reimplementation of glfwWaitEvents
+			if (waitForMessages) {
+				WaitMessage();
 			}
 
 			glView->pollEvents();
@@ -732,4 +766,13 @@ struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
 		}
 	}
 };
+
+$execute {
+	using namespace geode;
+
+	g_waitForMessages = Mod::get()->getSettingValue<bool>("disable-controller");
+	listenForSettingChanges("disable-controller", +[](bool value) {
+		g_waitForMessages = value;
+	});
+}
 

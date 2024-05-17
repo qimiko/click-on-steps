@@ -9,6 +9,15 @@
 	"tags": [
 		"gameplay", "performance", "enhancement"
 	],
+	"settings": {
+		"disable-controller": {
+			"name": "Disable controller support",
+			"description": "Runs a different input loop that waits for messages instead of polling for them. This has greater input precision and may also perform better, but will globally disable the use of controllers.",
+			"type": "bool",
+			"default": false,
+			"platforms": ["windows"]
+		}
+	},
 	"id": "zmx.cbf-lite",
 	"name": "Click on Steps",
 	"developer": "zmx",
