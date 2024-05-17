@@ -482,9 +482,9 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			QueryPerformanceCounter(&currentTime);
 			*s_nTimeElapsed = currentTime;
 
-			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
-		 		continue;
-			 }
+			if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
+				continue;
+			}
 
 			if (this->m_bUpdateController) {
 				updateControllerState(this->m_pControllerHandler);
@@ -720,9 +720,9 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			QueryPerformanceCounter(&currentTime);
 			*s_nTimeElapsed = currentTime;
 
-			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
-		 		continue;
-			 }
+			if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
+				continue;
+			}
 
 			auto dCurrentTime = static_cast<double>(currentTime.QuadPart);
 			auto dLastTime = static_cast<double>(lastTime.QuadPart);
