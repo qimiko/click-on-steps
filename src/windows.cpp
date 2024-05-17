@@ -597,7 +597,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			LARGE_INTEGER currentTime;
 			QueryPerformanceCounter(&currentTime);
 
-			if (!waitForMessages && currentTime.QuadPart - lastTime.QuadPart <= interval) {
+			if (!waitForMessages && currentTime.QuadPart - lastTime.QuadPart < interval) {
 				continue;
 			}
 
@@ -720,7 +720,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			QueryPerformanceCounter(&currentTime);
 			*s_nTimeElapsed = currentTime;
 
-			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart <= interval.QuadPart) {
+			 if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
 		 		continue;
 			 }
 
@@ -749,15 +749,15 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 				}
 			}
 
-			auto actualDeltaTime = dt;
+			auto adjustedDeltaTime = dt;
 			if (m_bSmoothFix && director->getSmoothFixCheck() && std::abs(dt - updateRate) <= updateRate * 0.1f) {
-				actualDeltaTime = updateRate;
+				adjustedDeltaTime = updateRate;
 			}
 
 			customGlView->dumpEventQueue();
 
-			director->setDeltaTime(dt);
-			director->setActualDeltaTime(actualDeltaTime);
+			director->setDeltaTime(adjustedDeltaTime);
+			director->setActualDeltaTime(dt);
 			reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
 		}
 	}
