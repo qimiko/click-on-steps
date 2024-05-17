@@ -11,6 +11,7 @@
 #include <queue>
 #include <condition_variable>
 #include <atomic>
+#include <cmath>
 
 #include "input.hpp"
 
@@ -405,6 +406,7 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 };
 
 std::atomic_uint32_t g_inputTps{};
+std::atomic_int64_t g_pollingRate = 1000;
 
 struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCApplication> {
 	static void onModify(auto& self) {
@@ -568,9 +570,9 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		LARGE_INTEGER lastTime;
 		QueryPerformanceCounter(&lastTime);
 
-		// run input polling at 1000hz
-		// TODO: this _might_ have to be dynamic
-		double updateRate = 1.0 / 1000.0;
+		std::int64_t currentPollingRate = g_pollingRate;
+		double updateRate = 1.0 / currentPollingRate;
+
 		auto freq = query_performance_frequency();
 		double dFreq = freq;
 		auto interval = static_cast<std::uint64_t>(freq * updateRate);
@@ -634,15 +636,22 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			}
 
 			// fps is kinda meaningless with the other loop option, but whatever
-			auto dt = (static_cast<double>(currentTime.QuadPart) - static_cast<double>(lastTime.QuadPart)) / dFreq;
+			auto dt = static_cast<double>(currentTime.QuadPart - lastTime.QuadPart) / dFreq;
 
 			inputFrames++;
 			inputTime += dt;
 
 			if (inputTime > 0.5f) {
-				g_inputTps = inputFrames / inputTime;
+				g_inputTps = std::round(inputFrames / inputTime);
 				inputFrames = 0;
 				inputTime = 0.0f;
+
+				// recalculate interval here if necessary
+				if (currentPollingRate != g_pollingRate) {
+					currentPollingRate = g_pollingRate;
+					updateRate = 1.0 / currentPollingRate;
+					interval = static_cast<std::uint64_t>(freq * updateRate);
+				}
 			}
 
 			// my reimplementation of glfwWaitEvents
@@ -773,6 +782,11 @@ $execute {
 	g_waitForMessages = Mod::get()->getSettingValue<bool>("disable-controller");
 	listenForSettingChanges("disable-controller", +[](bool value) {
 		g_waitForMessages = value;
+	});
+
+	g_pollingRate = Mod::get()->getSettingValue<std::int64_t>("input-rate");
+	listenForSettingChanges("input-rate", +[](std::int64_t value) {
+		g_pollingRate = value;
 	});
 }
 
