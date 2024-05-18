@@ -4,6 +4,10 @@
 
 void AsyncUILayer::handleKeypress(cocos2d::enumKeyCodes key, bool down) {
 	auto event = ExtendedCCKeyboardDispatcher::getCurrentEventInfo();
+	if (!event) {
+		return UILayer::handleKeypress(key, down);
+	}
+
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
@@ -12,6 +16,10 @@ void AsyncUILayer::handleKeypress(cocos2d::enumKeyCodes key, bool down) {
 }
 
 bool AsyncUILayer::ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
+	if (!event) {
+		return UILayer::ccTouchBegan(touch, event);
+	}
+
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
@@ -22,6 +30,10 @@ bool AsyncUILayer::ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 }
 
 void AsyncUILayer::ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
+	if (!event) {
+		return UILayer::ccTouchMoved(touch, event);
+	}
+
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
@@ -30,6 +42,10 @@ void AsyncUILayer::ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 }
 
 void AsyncUILayer::ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
+	if (!event) {
+		return UILayer::ccTouchEnded(touch, event);
+	}
+
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
@@ -39,6 +55,10 @@ void AsyncUILayer::ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 
 #ifndef GEODE_IS_WINDOWS
 void AsyncUILayer::ccTouchCancelled(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
+	if (!event) {
+		return UILayer::ccTouchCancelled(touch, event);
+	}
+
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
