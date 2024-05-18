@@ -769,9 +769,14 @@ struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
 		CCDirector::showFPSLabel();
 
 		if (willUpdate) {
-			auto fpsLabel = fmt::format("FPS: {:.0f}\nInput: {}", this->m_fFrameRate, g_inputTps);
-			this->m_pFPSNode->setString(fpsLabel.c_str());
+			// the node is already visited and drawing fps twice creates some visual weirdness
+			// so only draw the next line and then set it to render the full thing on the next iteration
+			auto inputSection = fmt::format("\nInput: {}", g_inputTps);
+			this->m_pFPSNode->setString(inputSection.c_str());
 			this->m_pFPSNode->visit();
+
+			auto fpsLabel = fmt::format("FPS: {:.0f}{}", this->m_fFrameRate, inputSection);
+			this->m_pFPSNode->setString(fpsLabel.c_str());
 		}
 	}
 };
