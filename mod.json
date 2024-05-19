@@ -2,7 +2,8 @@
 	"geode": "2.0.0-beta.26",
 	"gd": {
 		"mac": "2.200",
-		"win": "2.204"
+		"win": "2.204",
+		"android": "2.205"
 	},
 	"version": "v1.1.0",
 	"early-load": true,
