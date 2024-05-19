@@ -8,7 +8,7 @@ In practice, you gain the following benefits over CBF:
 - Higher precision inputs (up to 240 tps) with no performance loss
 - Improved bot compatibility
 - Improved support for other input devices
-- Theoretically leaderboard safe (identical to playing on 240fps). Don't take my word on that.
+- Theoretically leaderboard safe (identical to playing on 240fps).
 
 Unlike CBF, this mod _cannot_ click between steps.
 Which is to say, your input precision is fixed at 240 tps.
@@ -54,4 +54,4 @@ To make the comparison easier, the fancy diagram skips a lot of detail. Sorry.
 
 - [mat](https://github.com/matcool) for the name and Windows testing
 - [ninXout](https://github.com/ninXout) for testing
-- [syzzi](https://github.com/theyareonit) for the original mod
+- [syzzi](https://github.com/theyareonit) for the original mod concept
