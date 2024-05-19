@@ -25,5 +25,13 @@ struct AsyncUILayer : geode::Modify<AsyncUILayer, UILayer> {
 	void ccTouchCancelled(cocos2d::CCTouch*, cocos2d::CCEvent*);
 #endif
 
+#ifdef GEODE_IS_ANDROID
+	// to workaround some Android hook size problems, we reimplement these functions
+	static void onModify(auto& self) {
+		(void)self.setHookPriority("UILayer::ccTouchMoved", 5000);
+		(void)self.setHookPriority("UILayer::ccTouchCancelled", 5000);
+	}
+#endif
+
 	std::uint64_t getLastTimestamp();
 };

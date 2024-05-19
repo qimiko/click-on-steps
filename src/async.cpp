@@ -31,13 +31,31 @@ bool AsyncUILayer::ccTouchBegan(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 
 void AsyncUILayer::ccTouchMoved(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
 	if (!event) {
+#ifdef GEODE_IS_ANDROID
+		if (this->m_inPlatformer) {
+			this->processUINodesTouch(
+				static_cast<GJUITouchEvent>(1), touch
+			);
+		}
+		return;
+#else
 		return UILayer::ccTouchMoved(touch, event);
+#endif
 	}
 
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
+#ifdef GEODE_IS_ANDROID
+	if (this->m_inPlatformer) {
+		this->processUINodesTouch(
+			static_cast<GJUITouchEvent>(1), touch
+		);
+	}
+#else
 	UILayer::ccTouchMoved(touch, event);
+#endif
+
 	m_fields->m_lastTimestamp = 0ull;
 }
 
@@ -55,14 +73,18 @@ void AsyncUILayer::ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event
 
 #ifndef GEODE_IS_WINDOWS
 void AsyncUILayer::ccTouchCancelled(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) {
+	// this event can't actually be called on anything but android/ios,
+	// so should be safe to just rewrite them
+
 	if (!event) {
-		return UILayer::ccTouchCancelled(touch, event);
+		return this->ccTouchEnded(touch, event);
 	}
 
 	auto extendedInfo = static_cast<ExtendedCCEvent*>(event);
 	m_fields->m_lastTimestamp = extendedInfo->getTimestamp();
 
-	UILayer::ccTouchCancelled(touch, event);
+	this->ccTouchEnded(touch, event);
+
 	m_fields->m_lastTimestamp = 0ull;
 }
 #endif
