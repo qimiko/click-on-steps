@@ -55,7 +55,7 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 #endif
 
 #if DEBUG_STEPS
-	geode::log::debug("queueing input type={} down={} p2={} at time {}", btnType, push, secondPlayer, currentTime);
+	geode::log::debug("queueing input type={} down={} p2={} at time {} (ts {} -> {})", btnType, push, secondPlayer, currentTime, timeRelativeBegin, inputTimestamp);
 #endif
 
 	// if you felt like it, you could calculate the step too
