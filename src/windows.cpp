@@ -55,6 +55,8 @@ LARGE_INTEGER* s_nTimeElapsed = nullptr;
 int* s_iFrameCounter = nullptr;
 float* s_fFrameTime = nullptr;
 std::atomic_bool g_waitForMessages{};
+bool g_runSingleThreaded = false;
+bool g_singleThreadedInInputPoll = false;
 
 class GameEvent {
 protected:
@@ -148,6 +150,10 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		// - run setupwindow in the main thread
 		// - unset the main thread's context (again)
 		// - set the rendering thread's context back
+
+		if (g_runSingleThreaded) {
+			return CCEGLView::toggleFullScreen(fullscreen, borderless);
+		}
 
 		if (GetCurrentThreadId() != g_mainThreadId) {
 			std::unique_lock fsLock(g_fullscreenMutex);
@@ -394,7 +400,7 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 	}
 
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isDown, bool isRepeat) {
-		if (GetCurrentThreadId() != CustomCCEGLView::g_renderingThreadId) {
+		if (g_singleThreadedInInputPoll || GetCurrentThreadId() != CustomCCEGLView::g_renderingThreadId) {
 			// queue our event
 			auto event = new ManualKeyboardEvent(key, isDown, isRepeat);
 			CustomCCEGLView::g_self->queueEvent(event);
@@ -413,16 +419,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		(void)self.setHookPriority("cocos2d::CCApplication::run", 5000);
 	}
 
-	// while this function is unused, i thought it'd be good to keep it for reference purposes
 	int runSingleThreaded() {
-		// setup hidden function pointers
-		PVRFrameEnableControlWindow = reinterpret_cast<decltype(PVRFrameEnableControlWindow)>(geode::base::getCocos() + 0xc4190);
-		updateControllerState = reinterpret_cast<decltype(updateControllerState)>(geode::base::getCocos() + 0xcb960);
-
-		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5a80);
-		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5a7c);
-		s_fFrameTime = reinterpret_cast<float*>(geode::base::getCocos() + 0x1a5a78);
-
 		PVRFrameEnableControlWindow(false);
 		this->setupGLView();
 
@@ -433,6 +430,10 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		this->setupVerticalSync();
 		this->updateVerticalSync();
 
+		auto customGlView = static_cast<CustomCCEGLView*>(glView);
+		CustomCCEGLView::g_mainThreadId = GetCurrentThreadId();
+		CustomCCEGLView::g_renderingThreadId = GetCurrentThreadId();
+
 		if (!this->applicationDidFinishLaunching()) {
 			return 0;
 		}
@@ -440,9 +441,22 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		auto isFullscreen = glView->m_bIsFullscreen;
 		this->m_bFullscreen = isFullscreen;
 
-		LARGE_INTEGER lastTime;
-		QueryPerformanceCounter(&lastTime);
-		*s_nTimeElapsed = lastTime;
+		auto freq = query_performance_frequency();
+		double dFreq = freq;
+
+		std::int64_t currentInputPollingRate = g_pollingRate;
+		double pollUpdateRate = 1.0 / static_cast<double>(currentInputPollingRate);
+
+		auto pollInterval = static_cast<std::uint64_t>(freq * pollUpdateRate);
+
+		auto inputFrames = 0u;
+		auto inputTime = 0.0f;
+
+		LARGE_INTEGER lastFrameTime;
+		LARGE_INTEGER lastInputTime;
+		QueryPerformanceCounter(&lastFrameTime);
+		lastInputTime.QuadPart = lastFrameTime.QuadPart;
+		*s_nTimeElapsed = lastFrameTime;
 
 		while (true) {
 			if (glView->windowShouldClose()) {
@@ -473,73 +487,100 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			}
 			isFullscreen = this->m_bFullscreen;
 
+			LARGE_INTEGER currentTime;
+			QueryPerformanceCounter(&currentTime);
+			*s_nTimeElapsed = currentTime;
+
+			if (currentTime.QuadPart - lastInputTime.QuadPart >= pollInterval) {
+				g_singleThreadedInInputPoll = true;
+
+				if (this->m_bUpdateController) {
+					updateControllerState(this->m_pControllerHandler);
+					updateControllerState(this->m_pController2Handler);
+					this->m_bUpdateController = false;
+				}
+
+				auto player1Controller = this->m_pControllerHandler;
+				auto player2Controller = this->m_pController2Handler;
+
+				this->m_bControllerConnected = player1Controller->m_controllerConnected || player2Controller->m_controllerConnected;
+
+				if (player1Controller->m_controllerConnected) {
+					this->updateControllerKeys(player1Controller, 1);
+				}
+
+				if (player2Controller->m_controllerConnected) {
+					this->updateControllerKeys(player2Controller, 2);
+				}
+
+				auto dt = static_cast<double>(currentTime.QuadPart - lastInputTime.QuadPart) / dFreq;
+
+				inputFrames++;
+				inputTime += dt;
+
+				if (inputTime > 0.5f) {
+					g_inputTps = std::round(inputFrames / inputTime);
+					inputFrames = 0;
+					inputTime = 0.0f;
+
+					// recalculate interval here if necessary
+					if (currentInputPollingRate != g_pollingRate) {
+						currentInputPollingRate = g_pollingRate;
+						pollUpdateRate = 1.0 / currentInputPollingRate;
+						pollInterval = static_cast<std::uint64_t>(freq * pollUpdateRate);
+					}
+				}
+
+				glView->pollEvents();
+
+				g_singleThreadedInInputPoll = false;
+				lastInputTime.QuadPart = currentTime.QuadPart;
+			}
+
 			auto updateRate = m_bVerticalSyncEnabled ? m_fVsyncInterval : m_fAnimationInterval;
 			auto interval = m_bVerticalSyncEnabled ? m_nVsyncInterval : m_nAnimationInterval;
 
 			auto useFrameCount = !isFullscreen && !this->m_bForceTimer;
 
-			LARGE_INTEGER currentTime;
-			QueryPerformanceCounter(&currentTime);
-			*s_nTimeElapsed = currentTime;
+			if (useFrameCount || currentTime.QuadPart - lastFrameTime.QuadPart >= interval.QuadPart) {
+				// run update
+				auto dCurrentTime = static_cast<double>(currentTime.QuadPart);
+				auto dLastTime = static_cast<double>(lastFrameTime.QuadPart);
+				auto dInterval = static_cast<double>(interval.QuadPart);
+				auto dUpdateRate = static_cast<double>(updateRate);
 
-			if (!useFrameCount && currentTime.QuadPart - lastTime.QuadPart < interval.QuadPart) {
-				continue;
-			}
+				auto dt = ((dCurrentTime - dLastTime) / dInterval) * dUpdateRate;
+				lastFrameTime.QuadPart = currentTime.QuadPart;
 
-			if (this->m_bUpdateController) {
-				updateControllerState(this->m_pControllerHandler);
-				updateControllerState(this->m_pController2Handler);
-				this->m_bUpdateController = false;
-			}
+				if (useFrameCount) {
+					auto currentFrameTime = *s_fFrameTime + dt;
+					(*s_iFrameCounter)++;
+					*s_fFrameTime = currentFrameTime;
+					if (0.5 < currentFrameTime) {
+						auto frameInterval = static_cast<float>(*s_iFrameCounter);
+						*s_iFrameCounter = 0;
+						*s_fFrameTime = 0.0f;
 
-			auto player1Controller = this->m_pControllerHandler;
-			auto player2Controller = this->m_pController2Handler;
-
-			this->m_bControllerConnected = player1Controller->m_controllerConnected || player2Controller->m_controllerConnected;
-
-			if (player1Controller->m_controllerConnected) {
-				this->updateControllerKeys(player1Controller, 1);
-			}
-
-			if (player2Controller->m_controllerConnected) {
-				this->updateControllerKeys(player2Controller, 2);
-			}
-
-			auto dCurrentTime = static_cast<double>(currentTime.QuadPart);
-			auto dLastTime = static_cast<double>(lastTime.QuadPart);
-			auto dInterval = static_cast<double>(interval.QuadPart);
-			auto dUpdateRate = static_cast<double>(updateRate);
-
-			auto dt = ((dCurrentTime - dLastTime) / dInterval) * dUpdateRate;
-			lastTime.QuadPart = currentTime.QuadPart;
-
-			if (useFrameCount) {
-				auto currentFrameTime = *s_fFrameTime + dt;
-				(*s_iFrameCounter)++;
-				*s_fFrameTime = currentFrameTime;
-				if (0.5 < currentFrameTime) {
-					auto frameInterval = static_cast<float>(*s_iFrameCounter);
-					*s_iFrameCounter = 0;
-					*s_fFrameTime = 0.0f;
-
-					auto targetFps = 1.0 / updateRate;
-					auto currentFps = frameInterval / currentFrameTime;
-					if ((targetFps * 1.2) < currentFps) {
-						this->m_bForceTimer = true;
+						auto targetFps = 1.0 / updateRate;
+						auto currentFps = frameInterval / currentFrameTime;
+						if ((targetFps * 1.2) < currentFps) {
+							this->m_bForceTimer = true;
+						}
 					}
 				}
-			}
 
-			// i haven't actually figured out what happens here
-			auto actualDeltaTime = dt;
-			if (m_bSmoothFix && director->getSmoothFixCheck() && std::abs(dt - updateRate) <= updateRate * 0.1f) {
-				actualDeltaTime = updateRate;
-			}
+				// i haven't actually figured out what happens here
+				auto adjustedDeltaTime = dt;
+				if (m_bSmoothFix && director->getSmoothFixCheck() && std::abs(dt - updateRate) <= updateRate * 0.1f) {
+					adjustedDeltaTime = updateRate;
+				}
 
-			glView->pollEvents();
-			director->setDeltaTime(dt);
-			director->setActualDeltaTime(actualDeltaTime);
-			reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
+				customGlView->dumpEventQueue();
+
+				director->setDeltaTime(adjustedDeltaTime);
+				director->setActualDeltaTime(dt);
+				reinterpret_cast<cocos2d::CCDisplayLinkDirector*>(director)->mainLoop();
+			}
 		}
 	}
 
@@ -554,6 +595,10 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5a80);
 		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5a7c);
 		s_fFrameTime = reinterpret_cast<float*>(geode::base::getCocos() + 0x1a5a78);
+
+		if (g_runSingleThreaded) {
+			return runSingleThreaded();
+		}
 
 		PVRFrameEnableControlWindow(false);
 		this->setupGLView();
@@ -571,7 +616,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		QueryPerformanceCounter(&lastTime);
 
 		std::int64_t currentPollingRate = g_pollingRate;
-		double updateRate = 1.0 / currentPollingRate;
+		double updateRate = 1.0 / static_cast<double>(currentPollingRate);
 
 		auto freq = query_performance_frequency();
 		double dFreq = freq;
@@ -793,5 +838,6 @@ $execute {
 	listenForSettingChanges("input-rate", +[](std::int64_t value) {
 		g_pollingRate = value;
 	});
-}
 
+	g_runSingleThreaded = Mod::get()->getSettingValue<bool>("single-threaded");
+}

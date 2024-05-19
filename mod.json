@@ -12,7 +12,7 @@
 	"settings": {
 		"disable-controller": {
 			"name": "Disable Controller Support",
-			"description": "Runs a different input loop that waits for messages instead of polling. This has greater input precision and may perform better, but will globally disable the use of controllers.",
+			"description": "Runs a different input loop that waits for messages instead of polling. This has greater input precision and may perform better, but will globally disable the use of controllers. Has no effect in single-threaded mode.",
 			"type": "bool",
 			"default": false,
 			"platforms": ["windows"]
@@ -27,6 +27,13 @@
 			"control": {
 				"slider": false
 			},
+			"platforms": ["windows"]
+		},
+		"single-threaded": {
+			"name": "Run Single Threaded (req. restart)",
+			"description": "Runs the game on a single thread, interweaving input and rendering. This has significantly reduced performance, but may be more stable in some cases. Input polling rate will be limited to the display refresh rate if this option and VSync are enabled. Most similar to the traditional TPS bypass/draw divide.",
+			"type": "bool",
+			"default": false,
 			"platforms": ["windows"]
 		}
 	},
