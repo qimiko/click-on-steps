@@ -59,6 +59,7 @@ $execute {
 			if (env->RegisterNatives(clazz, methods, 1) != 0) {
 				// method was not found
 				clearJNIExceptions();
+				geode::log::warn("the launcher doesn't support input timestamp api!");
 			} else {
 				reportPlatformCapability("timestamp_inputs");
 			}
