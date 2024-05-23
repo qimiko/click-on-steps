@@ -72,6 +72,11 @@ public:
 };
 
 struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
+	static void onModify(auto& self) {
+		// run togglefullscreen last so mods that use it to set context can do that
+		(void)self.setHookPriority("cocos2d::CCEGLView::toggleFullScreen", 1000);
+	}
+
 	static std::queue<GameEvent*> g_events;
 	static std::mutex g_eventMutex;
 	static CustomCCEGLView* g_self;
