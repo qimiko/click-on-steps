@@ -13,14 +13,14 @@
 	"settings": {
 		"disable-controller": {
 			"name": "Disable Controller Support",
-			"description": "Runs a different input loop that waits for messages instead of polling. This has greater input precision and may perform better, but will globally disable the use of controllers. Has no effect in single-threaded mode.",
+			"description": "Globally disables the use of controllers, which forces a more performant input loop at all times. Has no effect in single-threaded mode, or when a controller is not connected.",
 			"type": "bool",
 			"default": false,
 			"platforms": ["windows"]
 		},
 		"input-rate": {
-			"name": "Input Polling Rate",
-			"description": "Determines the amount of times per second that inputs are read, which increases precision at the cost of some performance. Extremely high values have little use unless you are using a physics bypass. Has no effect when controller support is disabled.",
+			"name": "Alternative Polling Rate",
+			"description": "Determines the amount of times per second that inputs are read, which increases precision at the cost of some performance. Extremely high values have little use unless you are using a physics bypass. Has no effect unless the game is in single-threaded mode, or a controller is connected.",
 			"type": "int",
 			"default": 720,
 			"min": 3,

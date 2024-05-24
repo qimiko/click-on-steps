@@ -636,7 +636,8 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		std::thread render_loop(&CustomCCApplication::glLoop, this);
 
 		while (true) {
-			bool waitForMessages = g_waitForMessages;
+			bool skipControllerPoll = g_waitForMessages;
+			bool waitForMessages = skipControllerPoll || !this->m_bControllerConnected;
 
 			if (glView->windowShouldClose()) {
 				render_loop.join();
@@ -663,7 +664,7 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 			}
 
 			// did you think i was going to make a "disable controller support" option without disabling controller support
-			if (!waitForMessages) {
+			if (!skipControllerPoll) {
 				// perform the input things
 				if (this->m_bUpdateController) {
 					updateControllerState(this->m_pControllerHandler);
@@ -704,9 +705,11 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 				}
 			}
 
-			// my reimplementation of glfwWaitEvents
+			// my reimplementation of glfwWaitEventsTimeout
 			if (waitForMessages) {
-				WaitMessage();
+				// timeout here is just in case waitmessage gets confused and forgets to process an input
+				// in practice, moving the mouse would be enough to get waitmessage unstuck, but easier to just avoid it
+				MsgWaitForMultipleObjects(0, nullptr, false, 2'500, QS_ALLEVENTS);
 			}
 
 			glView->pollEvents();
@@ -821,7 +824,7 @@ struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
 		if (willUpdate) {
 			// the node is already visited and drawing fps twice creates some visual weirdness
 			// so only draw the next line and then set it to render the full thing on the next iteration
-			auto inputSection = fmt::format("\nInput: {}", g_inputTps);
+			auto inputSection = fmt::format("\nInput: {}", g_inputTps.load());
 			this->m_pFPSNode->setString(inputSection.c_str());
 			this->m_pFPSNode->visit();
 
