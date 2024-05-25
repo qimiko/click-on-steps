@@ -11,16 +11,18 @@
 		"gameplay", "performance", "enhancement"
 	],
 	"settings": {
-		"disable-controller": {
-			"name": "Disable Controller Support",
-			"description": "Globally disables the use of controllers, which forces a more performant input loop at all times. Has no effect in single-threaded mode, or when a controller is not connected.",
-			"type": "bool",
-			"default": false,
+		"loop-type": {
+			"name": "Input Loop Type",
+			"description": "Determines the style of <cf>input loop</c> in use. This is an <cy>advanced option</c>, please avoid changing it unless you know what you are doing!\n0 = <cc>Auto-Detect</c> (default), which selects the <cg>best choice</c> of loop from your setup. 1 = <cf>Poll Only</c>. 2 = <co>Wait Only</c>. Using the wait only loop will also <cr>globally disable</c> controller support.",
+			"type": "int",
+			"default": 0,
+			"min": 0,
+			"max": 2,
 			"platforms": ["windows"]
 		},
 		"input-rate": {
 			"name": "Alternative Polling Rate",
-			"description": "Determines the amount of times per second that inputs are read, which increases precision at the cost of some performance. Extremely high values have little use unless you are using a physics bypass. Has no effect unless the game is in single-threaded mode, or a controller is connected.",
+			"description": "Determines the amount of times per second that inputs are read, which increases precision at the cost of some performance. Extremely high values have little use unless you are using a physics bypass. Has no effect unless the game is in the polling loop.",
 			"type": "int",
 			"default": 720,
 			"min": 3,
@@ -32,7 +34,7 @@
 		},
 		"single-threaded": {
 			"name": "Run Single Threaded (req. restart)",
-			"description": "Runs the game on a single thread, interweaving input and rendering. This has significantly reduced performance, but may be more stable in some cases. Input polling rate will be limited to the display refresh rate if this option and VSync are enabled. Most similar to the traditional TPS bypass/draw divide.",
+			"description": "Runs the game on a single thread, interweaving input and rendering. This has significantly reduced performance, but may be more stable in some cases. It will also force the polling loop at all times. Input polling rate will be limited to the display refresh rate if this option and VSync are enabled. Most similar to the traditional TPS bypass/draw divide.",
 			"type": "bool",
 			"default": false,
 			"platforms": ["windows"]

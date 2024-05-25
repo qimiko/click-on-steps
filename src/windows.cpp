@@ -54,7 +54,7 @@ void postEmptyEvent(GLFWwindow* window) {
 LARGE_INTEGER* s_nTimeElapsed = nullptr;
 int* s_iFrameCounter = nullptr;
 float* s_fFrameTime = nullptr;
-std::atomic_bool g_waitForMessages{};
+std::atomic_uint8_t g_inputLoopType = 0;
 bool g_runSingleThreaded = false;
 bool g_singleThreadedInInputPoll = false;
 
@@ -166,9 +166,7 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 			g_switchToFullscreen = fullscreen;
 			g_switchToBorderless = borderless;
 
-			if (g_waitForMessages) {
-				postEmptyEvent(this->m_pMainWindow);
-			}
+			postEmptyEvent(this->m_pMainWindow);
 
 			ptr_glfwMakeContextCurrent(nullptr);
 			g_fullscreenVariable.wait(fsLock, []{ return !g_needsSwitchFullscreen; });
@@ -193,10 +191,8 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 	}
 
 	void end() {
-		if (g_waitForMessages) {
-			// post empty just before the mainwindow gets set to null
-			postEmptyEvent(this->m_pMainWindow);
-		}
+		// post empty just before the mainwindow gets set to null
+		postEmptyEvent(this->m_pMainWindow);
 
 		CCEGLView::end();
 	}
@@ -636,8 +632,12 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 		std::thread render_loop(&CustomCCApplication::glLoop, this);
 
 		while (true) {
-			bool skipControllerPoll = g_waitForMessages;
-			bool waitForMessages = skipControllerPoll || !this->m_bControllerConnected;
+			auto loopType = g_inputLoopType.load();
+
+			auto skipControllerPoll = loopType == 2;
+			auto disableMessageWait = loopType == 1;
+			auto canWaitForMessages = skipControllerPoll || !this->m_bControllerConnected;
+			auto waitForMessages = canWaitForMessages && !disableMessageWait;
 
 			if (glView->windowShouldClose()) {
 				render_loop.join();
@@ -837,9 +837,10 @@ struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
 $execute {
 	using namespace geode;
 
-	g_waitForMessages = Mod::get()->getSettingValue<bool>("disable-controller");
-	listenForSettingChanges("disable-controller", +[](bool value) {
-		g_waitForMessages = value;
+	g_inputLoopType = Mod::get()->getSettingValue<std::int64_t>("loop-type");
+	listenForSettingChanges("loop-type", +[](std::int64_t value) {
+		// value is in between 0 - 2
+		g_inputLoopType = static_cast<std::uint8_t>(value);
 	});
 
 	g_pollingRate = Mod::get()->getSettingValue<std::int64_t>("input-rate");
