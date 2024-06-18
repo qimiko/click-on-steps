@@ -1,9 +1,9 @@
 {
-	"geode": "2.0.0-beta.26",
+	"geode": "3.0.0-beta.1",
 	"gd": {
-		"mac": "2.200",
+		"mac": "2.206",
 		"win": "2.204",
-		"android": "2.205"
+		"android": "2.206"
 	},
 	"version": "v1.1.0",
 	"early-load": true,
@@ -18,7 +18,7 @@
 			"default": 0,
 			"min": 0,
 			"max": 2,
-			"platforms": ["windows"]
+			"platforms": ["win"]
 		},
 		"input-rate": {
 			"name": "Alternative Polling Rate",
@@ -30,14 +30,14 @@
 			"control": {
 				"slider": false
 			},
-			"platforms": ["windows"]
+			"platforms": ["win"]
 		},
 		"single-threaded": {
 			"name": "Run Single Threaded (req. restart)",
 			"description": "Runs the game on a single thread, interweaving input and rendering. This has significantly reduced performance, but may be more stable in some cases. It will also force the polling loop at all times. Input polling rate will be limited to the display refresh rate if this option and VSync are enabled. Most similar to the traditional TPS bypass/draw divide.",
 			"type": "bool",
 			"default": false,
-			"platforms": ["windows"]
+			"platforms": ["win"]
 		}
 	},
 	"id": "zmx.cbf-lite",

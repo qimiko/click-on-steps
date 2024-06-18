@@ -21,9 +21,9 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 	void update(float dt);
 	void queueButton(int btnType, bool push, bool secondPlayer);
 	void resetLevelVariables();
-	void processTimedInputs();
 	void processCommands(float timeStep);
 
+	void processTimedInputs();
 	void dumpInputQueue();
 };
 
