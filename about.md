@@ -23,6 +23,6 @@ _Windows support is experimental!_ Windowing issues may occur :(
 
 ## Special Thanks
 
-- [mat](https://github.com/matcool) for the name and Windows testing
+- [mat](https://github.com/matcool) for the name and Windows help
 - [ninXout](https://github.com/ninXout) for testing
 - [syzzi](https://github.com/theyareonit) for the original mod concept

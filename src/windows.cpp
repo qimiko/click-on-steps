@@ -38,7 +38,6 @@ std::uint64_t platform_get_time() {
 // windows is unfortunately a very outdated platform and requires us to track inputs ourselves
 // so um, enjoy this code to track inputs ourselves. i suppose
 
-void (*PVRFrameEnableControlWindow)(bool enable);
 void (__thiscall *updateControllerState)(CXBOXController*);
 void (*ptr_glfwMakeContextCurrent)(GLFWwindow*);
 void (*ptr_glfwCustomAdjustWindowSize)(GLFWwindow*, int width, int height);
@@ -134,18 +133,18 @@ struct CustomCCEGLView : geode::Modify<CustomCCEGLView, cocos2d::CCEGLView> {
 		// override some of rob's event callbacks here
 		auto window = this->m_pMainWindow;
 		g_self = this;
-		g_mouseCallback = reinterpret_cast<decltype(&glfwSetMouseButtonCallback)>(geode::base::getCocos() + 0x116fa0)(window, &onCustomGLFWMouseButtonCallback);
-		g_cursorPosCallback = reinterpret_cast<decltype(&glfwSetCursorPosCallback)>(geode::base::getCocos() + 0x116e20)(window, &onCustomGLFWCursorPosCallback);
-		g_scrollCallback = reinterpret_cast<decltype(&glfwSetScrollCallback)>(geode::base::getCocos() + 0x116fe0)(window, &onCustomGLFWScrollCallback);
-		g_charCallback = reinterpret_cast<decltype(&glfwSetCharCallback)>(geode::base::getCocos() + 0x116da0)(window, &onCustomGLFWCharCallback);
-		g_keyCallback = reinterpret_cast<decltype(&glfwSetKeyCallback)>(geode::base::getCocos() + 0x116f60)(window, &onCustomGLFWKeyCallback);
-		g_windowPosCallback = reinterpret_cast<decltype(&glfwSetWindowPosCallback)>(geode::base::getCocos() + 0x116760)(window, &onCustomGLFWWindowPosCallback);
+		g_mouseCallback = reinterpret_cast<decltype(&glfwSetMouseButtonCallback)>(geode::base::getCocos() + 0xd3210)(window, &onCustomGLFWMouseButtonCallback);
+		g_cursorPosCallback = reinterpret_cast<decltype(&glfwSetCursorPosCallback)>(geode::base::getCocos() + 0xd2f40)(window, &onCustomGLFWCursorPosCallback);
+		g_scrollCallback = reinterpret_cast<decltype(&glfwSetScrollCallback)>(geode::base::getCocos() + 0xd3250)(window, &onCustomGLFWScrollCallback);
+		g_charCallback = reinterpret_cast<decltype(&glfwSetCharCallback)>(geode::base::getCocos() + 0xd2ec0)(window, &onCustomGLFWCharCallback);
+		g_keyCallback = reinterpret_cast<decltype(&glfwSetKeyCallback)>(geode::base::getCocos() + 0xd31d0)(window, &onCustomGLFWKeyCallback);
+		g_windowPosCallback = reinterpret_cast<decltype(&glfwSetWindowPosCallback)>(geode::base::getCocos() + 0xd22f0)(window, &onCustomGLFWWindowPosCallback);
 		// -- framebuffer size callback (should be safe)
 		// this one calls some glfw methods and opengl methods so it needs a full rewrite 🥲
-		g_windowSizeCallback = reinterpret_cast<decltype(&glfwSetWindowSizeCallback)>(geode::base::getCocos() + 0x116820)(window, &onCustomGLFWWindowSizeCallback);
+		g_windowSizeCallback = reinterpret_cast<decltype(&glfwSetWindowSizeCallback)>(geode::base::getCocos() + 0xd2380)(window, &onCustomGLFWWindowSizeCallback);
 		// -- unknown callback (stub)
 		// -- device change callback (should be safe)
-		g_windowIconifyCallback = reinterpret_cast<decltype(&glfwSetWindowIconifyCallback)>(geode::base::getCocos() + 0x116720)(window, &onCustomGLFWWindowIconifyCallback);
+		g_windowIconifyCallback = reinterpret_cast<decltype(&glfwSetWindowIconifyCallback)>(geode::base::getCocos() + 0xd22b0)(window, &onCustomGLFWWindowIconifyCallback);
 		// -- cursor enter callback (should be safe)
 	}
 
@@ -421,7 +420,6 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 	}
 
 	int runSingleThreaded() {
-		PVRFrameEnableControlWindow(false);
 		this->setupGLView();
 
 		auto director = cocos2d::CCDirector::sharedDirector();
@@ -586,22 +584,22 @@ struct CustomCCApplication : geode::Modify<CustomCCApplication, cocos2d::CCAppli
 	}
 
 	int run() {
-		PVRFrameEnableControlWindow = reinterpret_cast<decltype(PVRFrameEnableControlWindow)>(geode::base::getCocos() + 0xc4190);
-		updateControllerState = reinterpret_cast<decltype(updateControllerState)>(geode::base::getCocos() + 0xcb960);
-		ptr_glfwMakeContextCurrent = reinterpret_cast<decltype(ptr_glfwMakeContextCurrent)>(geode::base::getCocos() + 0x115580);
-		ptr_glfwCustomAdjustWindowSize = reinterpret_cast<decltype(ptr_glfwCustomAdjustWindowSize)>(geode::base::getCocos() + 0x116670);
-		ptr_glfwGetWindowSize = reinterpret_cast<decltype(ptr_glfwGetWindowSize)>(geode::base::getCocos() + 0x116590);
-		ptr_glfwGetWin32Window = reinterpret_cast<decltype(ptr_glfwGetWin32Window)>(geode::base::getCocos() + 0x117db0);
+		updateControllerState = reinterpret_cast<decltype(updateControllerState)>(geode::base::getCocos() + 0x7bb40);
+		ptr_glfwMakeContextCurrent = reinterpret_cast<decltype(ptr_glfwMakeContextCurrent)>(geode::base::getCocos() + 0xd0b40);
+		ptr_glfwCustomAdjustWindowSize = reinterpret_cast<decltype(ptr_glfwCustomAdjustWindowSize)>(geode::base::getCocos() + 0xd2220);
+		ptr_glfwGetWindowSize = reinterpret_cast<decltype(ptr_glfwGetWindowSize)>(geode::base::getCocos() + 0xd2170);
+		ptr_glfwGetWin32Window = reinterpret_cast<decltype(ptr_glfwGetWin32Window)>(geode::base::getCocos() + 0xd5a70);
 
-		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5a80);
-		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5a7c);
-		s_fFrameTime = reinterpret_cast<float*>(geode::base::getCocos() + 0x1a5a78);
+		s_nTimeElapsed = reinterpret_cast<LARGE_INTEGER*>(geode::base::getCocos() + 0x1a5498);
+		s_iFrameCounter = reinterpret_cast<int*>(geode::base::getCocos() + 0x1a5494);
+		s_fFrameTime = reinterpret_cast<float*>(geode::base::getCocos() + 0x1a5490);
 
 		if (g_runSingleThreaded) {
 			return runSingleThreaded();
 		}
 
-		PVRFrameEnableControlWindow(false);
+		// this is inlined on 2.206 and i don't care enough to remake it (what does it even do??)
+		// PVRFrameEnableControlWindow(false);
 		this->setupGLView();
 
 		auto director = cocos2d::CCDirector::sharedDirector();

@@ -157,34 +157,5 @@ void CustomGJBaseGameLayer::processCommands(float timeStep) {
 	GJBaseGameLayer::processCommands(timeStep);
 }
 
-#ifdef GEODE_IS_WINDOWS
-
-void(__thiscall *emplaceBackOriginal)(gd::vector<PlayerButtonCommand>*, PlayerButtonCommand*) = nullptr;
-void PlayerButtonCommand_emplaceBack(gd::vector<PlayerButtonCommand>* self, PlayerButtonCommand* obj) {
-	auto baseLayer = GJBaseGameLayer::get();
-	if (!baseLayer) {
-		emplaceBackOriginal(self, obj);
-		return;
-	}
-
-	auto inputTimestamp = static_cast<AsyncUILayer*>(baseLayer->m_uiLayer)->getLastTimestamp();
-	if (!inputTimestamp) {
-		emplaceBackOriginal(self, obj);
-		return;
-	}
-
-	baseLayer->queueButton(static_cast<int>(obj->m_button), obj->m_isPush, obj->m_isPlayer2);
-}
-
-$execute {
-	emplaceBackOriginal = reinterpret_cast<decltype(emplaceBackOriginal)>(geode::base::get() + 0x1cb950);
-
-	(void)geode::Mod::get()->hook(
-		reinterpret_cast<void*>(emplaceBackOriginal),
-		&PlayerButtonCommand_emplaceBack,
-		"std::vector<PlayerButtonCommand>::emplace_back",
-		tulip::hook::TulipConvention::Thiscall
-	);
-}
-#endif
+// TODO: need a new Windows workaround for 2.206
 
