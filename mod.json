@@ -11,18 +11,17 @@
 		"gameplay", "performance", "enhancement"
 	],
 	"settings": {
-		"loop-type": {
+		"loop-style": {
 			"name": "Input Loop Type",
-			"description": "Determines the style of <cf>input loop</c> in use. This is an <cy>advanced option</c>, please avoid changing it unless you know what you are doing!\n0 = <cc>Auto-Detect</c> (default), which selects the <cg>best choice</c> of loop from your setup. 1 = <cf>Poll Only</c>. 2 = <co>Wait Only</c>. Using the wait only loop will also <cr>globally disable</c> controller support.",
-			"type": "int",
-			"default": 0,
-			"min": 0,
-			"max": 2,
+			"description": "Determines the style of <cf>input loop</c> in use. This is an <cy>advanced option</c>, please avoid changing it unless you know what you are doing!\n<cc>Auto</c> selects the <cg>best choice</c> of loop from your setup. <co>Wait</c> will hold until a new input is received, which has increased precision and performance over <cf>Poll</c>. Using the wait option will also <cr>globally disable</c> controller support.",
+			"type": "string",
+			"one-of": ["auto", "poll", "wait"],
+			"default": "auto",
 			"platforms": ["win"]
 		},
 		"input-rate": {
 			"name": "Alternative Polling Rate",
-			"description": "Determines the amount of times per second that inputs are read, which increases precision at the cost of some performance. Extremely high values have little use unless you are using a physics bypass. Has no effect unless the game is in the polling loop.",
+			"description": "Determines the <cc>amount of times per second</c> that inputs are read, which increases <cg>precision</c> at the cost of some <co>performance</c>. Extremely high values <cr>have little use</c> unless you are using a physics bypass. Has no effect unless the game is in the <cf>polling loop</c>.",
 			"type": "int",
 			"default": 720,
 			"min": 3,

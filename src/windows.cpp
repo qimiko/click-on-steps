@@ -832,13 +832,23 @@ struct CustomCCDirector : geode::Modify<CustomCCDirector, cocos2d::CCDirector> {
 	}
 };
 
+std::uint8_t mapLoopStyleToValue(const std::string& style) {
+	if (style == "poll") {
+		return 1;
+	} else if (style == "wait") {
+		return 2;
+	}
+
+	return 0;
+}
+
 $execute {
 	using namespace geode;
 
-	g_inputLoopType = Mod::get()->getSettingValue<std::int64_t>("loop-type");
-	listenForSettingChanges("loop-type", +[](std::int64_t value) {
+	g_inputLoopType = mapLoopStyleToValue(Mod::get()->getSettingValue<std::string>("loop-style"));
+	listenForSettingChanges("loop-style", +[](std::string value) {
 		// value is in between 0 - 2
-		g_inputLoopType = static_cast<std::uint8_t>(value);
+		g_inputLoopType = mapLoopStyleToValue(value);
 	});
 
 	g_pollingRate = Mod::get()->getSettingValue<std::int64_t>("input-rate");
