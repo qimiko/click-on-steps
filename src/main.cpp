@@ -157,5 +157,15 @@ void CustomGJBaseGameLayer::processCommands(float timeStep) {
 	GJBaseGameLayer::processCommands(timeStep);
 }
 
-// TODO: need a new Windows workaround for 2.206
+void CustomGJBaseGameLayer::fixUntimedInputs() {
+#ifdef GEODE_IS_WINDOWS
+	// windows workaround as queueButton and its vector insert is supposedly inlined everywhere!!
+	// as long as this is called before the timestamp is cleared, it should work
+	for (const auto& btn : this->m_queuedButtons) {
+		this->queueButton(static_cast<int>(btn.m_button), btn.m_isPush, btn.m_isPlayer2);
+	}
+
+	this->m_queuedButtons.clear();
+#endif
+}
 

@@ -25,6 +25,9 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 
 	void processTimedInputs();
 	void dumpInputQueue();
+
+	// windows workaround
+	void fixUntimedInputs();
 };
 
 
