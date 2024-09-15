@@ -2,6 +2,7 @@
 #include <Geode/modify/CCApplication.hpp>
 #include <Geode/modify/CCEGLView.hpp>
 #include <Geode/modify/CCKeyboardDispatcher.hpp>
+#include <Geode/modify/CCKeypadDispatcher.hpp>
 #include <Geode/modify/CCDirector.hpp>
 #include <Geode/loader/SettingEvent.hpp>
 
@@ -393,10 +394,21 @@ public:
 		: key(key), isDown(isDown), isRepeat(isRepeat) {}
 };
 
+class ManualKeypadEvent : public GameEvent {
+	cocos2d::ccKeypadMSGType type;
+
+public:
+	virtual void dispatch() override {
+		cocos2d::CCDirector::sharedDirector()->getKeypadDispatcher()->dispatchKeypadMSG(type);
+	}
+
+	ManualKeypadEvent(cocos2d::ccKeypadMSGType type) : type(type) {}
+};
+
 struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, cocos2d::CCKeyboardDispatcher> {
 	static void onModify(auto& self) {
 		// this is the most likely to be called before by another mod and it would be really bad if that other mod got to it first
-		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", -100000);
+		(void)self.setHookPriority("cocos2d::CCKeyboardDispatcher::dispatchKeyboardMSG", 100000);
 	}
 
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isDown, bool isRepeat) {
@@ -408,6 +420,23 @@ struct AsyncCCKeyboardDispatcher : geode::Modify<AsyncCCKeyboardDispatcher, coco
 		}
 
 		return CCKeyboardDispatcher::dispatchKeyboardMSG(key, isDown, isRepeat);
+	}
+};
+
+struct AsyncCCKeypadDispatcher : geode::Modify<AsyncCCKeypadDispatcher, cocos2d::CCKeypadDispatcher> {
+	static void onModify(auto& self) {
+		(void)self.setHookPriority("cocos2d::CCKeypadDispatcher::dispatchKeypadMSG", 100000);
+	}
+
+	bool dispatchKeypadMSG(cocos2d::ccKeypadMSGType type) {
+		if (g_singleThreadedInInputPoll || GetCurrentThreadId() != CustomCCEGLView::g_renderingThreadId) {
+			// queue our event
+			auto event = new ManualKeypadEvent(type);
+			CustomCCEGLView::g_self->queueEvent(event);
+			return true;
+		}
+
+		return CCKeypadDispatcher::dispatchKeypadMSG(type);
 	}
 };
 
