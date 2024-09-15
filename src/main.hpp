@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
+
 #include <Geode/modify/GJBaseGameLayer.hpp>
 
 #include <queue>
@@ -19,7 +20,13 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 	};
 
 	void update(float dt);
+
+#ifdef GEODE_IS_WINDOWS
+	// lovely inlined function error
+	void queueButton_custom(int btnType, bool push, bool secondPlayer);
+#else
 	void queueButton(int btnType, bool push, bool secondPlayer);
+#endif
 	void resetLevelVariables();
 	void processCommands(float timeStep);
 

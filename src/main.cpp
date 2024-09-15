@@ -28,7 +28,11 @@ std::uint64_t getTimestampCompat() {
 	return extendedInfo->getTimestamp();
 }
 
+#ifdef GEODE_IS_WINDOWS
+void CustomGJBaseGameLayer::queueButton_custom(int btnType, bool push, bool secondPlayer) {
+#else
 void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlayer) {
+#endif
 	// this is another workaround for it not being very easy to pass arguments to things
 	// oh well, ig
 
@@ -162,7 +166,7 @@ void CustomGJBaseGameLayer::fixUntimedInputs() {
 	// windows workaround as queueButton and its vector insert is supposedly inlined everywhere!!
 	// as long as this is called before the timestamp is cleared, it should work
 	for (const auto& btn : this->m_queuedButtons) {
-		this->queueButton(static_cast<int>(btn.m_button), btn.m_isPush, btn.m_isPlayer2);
+		this->queueButton_custom(static_cast<int>(btn.m_button), btn.m_isPush, btn.m_isPlayer2);
 	}
 
 	this->m_queuedButtons.clear();
