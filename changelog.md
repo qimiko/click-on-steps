@@ -1,5 +1,10 @@
 # Click on Steps Changelog
 
+## v1.3.0
+
+- Update 2.2074
+- Disabled Windows support
+
 ## v1.2.0
 
 - port to 2.206 (thank you mat for Windows offsets)
