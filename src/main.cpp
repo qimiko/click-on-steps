@@ -77,9 +77,10 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 void CustomGJBaseGameLayer::resetLevelVariables() {
 	GJBaseGameLayer::resetLevelVariables();
 
-	m_fields->m_timeBeginMs = 0;
-	m_fields->m_timeOffset = 0.0;
-	m_fields->m_timedCommands = {};
+	auto& fields = m_fields;
+	fields->m_timeBeginMs = 0;
+	fields->m_timeOffset = 0.0;
+	fields->m_timedCommands = {};
 }
 
 void CustomGJBaseGameLayer::processTimedInputs() {
@@ -87,9 +88,11 @@ void CustomGJBaseGameLayer::processTimedInputs() {
 	// not done here as processQueuedButtons is inlined on macos :(
 
 	// calculate the current time offset (in ms) that we stop handling inputs at
-	auto timeMs = static_cast<std::uint64_t>(m_fields->m_timeOffset * 1000.0);
+	auto& fields = m_fields;
 
-	auto& commands = this->m_fields->m_timedCommands;
+	auto timeMs = static_cast<std::uint64_t>(fields->m_timeOffset * 1000.0);
+
+	auto& commands = fields->m_timedCommands;
 	if (!commands.empty()) {
 		auto nextTime = commands.front().m_step;
 
@@ -144,8 +147,9 @@ void CustomGJBaseGameLayer::dumpInputQueue() {
 }
 
 void CustomGJBaseGameLayer::update(float dt) {
-	m_fields->m_timeBeginMs = platform_get_time();
-	m_fields->m_timeOffset = 0.0;
+	auto& fields = m_fields;
+	fields->m_timeBeginMs = platform_get_time();
+	fields->m_timeOffset = 0.0;
 
 	GJBaseGameLayer::update(dt);
 

@@ -1,11 +1,10 @@
 {
-	"geode": "3.6.1",
+	"geode": "4.0.0-beta.1",
 	"gd": {
-		"mac": "2.206",
-		"win": "2.206",
-		"android": "2.206"
+		"mac": "2.2074",
+		"android": "2.2074"
 	},
-	"version": "v1.2.0-beta.1",
+	"version": "v1.3.0",
 	"early-load": true,
 	"tags": [
 		"gameplay", "performance", "enhancement"
