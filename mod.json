@@ -33,9 +33,9 @@
 			"max": 1000
 		},
 		"misc-title": {
-				"type": "title",
-				"name": "Windows Platform Options",
-				"platforms": ["win"]
+			"type": "title",
+			"name": "Windows Platform Options",
+			"platforms": ["win"]
 		},
 		"loop-style": {
 			"name": "Input Loop Type",
