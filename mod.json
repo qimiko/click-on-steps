@@ -1,15 +1,42 @@
 {
-	"geode": "4.0.0-beta.1",
+	"geode": "4.0.1",
 	"gd": {
 		"mac": "2.2074",
 		"android": "2.2074"
 	},
 	"version": "v1.3.0",
-	"early-load": true,
+	"early-load": false,
 	"tags": [
 		"gameplay", "performance", "enhancement"
 	],
 	"settings": {
+		"late-input-cutoff": {
+			"name": "Handle Late Inputs",
+			"type": "bool",
+			"default": false,
+			"description": "When this option is disabled, inputs that are determined to have happened <cl>after the current frame</c> are queued to run at <cy>the start of the next frame</c>, regardless of when the input has happened. Enabling this may <cg>improve accuracy</c> in situations where the ticks per frame is inconsistent (such as lag or 144 fps) but at <cr>the cost of consistency</c> (double clicking)."
+		},
+		"input-offset": {
+			"name": "Input Offset (ms)",
+			"description": "Offsets all inputs by the selected time in milliseconds. This option will not click before frames. The <cl>Handle Late Inputs</c> may be useful for positive offsets.",
+			"type": "int",
+			"default": 0,
+			"min": -1000,
+			"max": 1000
+		},
+		"input-offset-rand": {
+			"name": "Input Offset +/-",
+			"description": "This is the same as the <cl>Input Offset</c> option, but with a <co>randomized offset</c>. Enjoy!",
+			"type": "int",
+			"default": 0,
+			"min": -1000,
+			"max": 1000
+		},
+		"misc-title": {
+				"type": "title",
+				"name": "Windows Platform Options",
+				"platforms": ["win"]
+		},
 		"loop-style": {
 			"name": "Input Loop Type",
 			"description": "Determines the style of <cf>input loop</c> in use. This is an <cy>advanced option</c>, please avoid changing it unless you know what you are doing!\n<cc>Auto</c> selects the <cg>best choice</c> of loop from your setup. <co>Wait</c> will hold until a new input is received, which has increased precision and performance over <cf>Poll</c>. Using the wait option will also <cr>globally disable</c> controller support.",

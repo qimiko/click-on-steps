@@ -36,8 +36,10 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 	// this is another workaround for it not being very easy to pass arguments to things
 	// oh well, ig
 
+	auto& fields = this->m_fields;
+
 	auto inputTimestamp = static_cast<AsyncUILayer*>(this->m_uiLayer)->getLastTimestamp();
-	auto timeRelativeBegin = this->m_fields->m_timeBeginMs;
+	auto timeRelativeBegin = fields->m_timeBeginMs;
 
 	if (!inputTimestamp) {
 		inputTimestamp = getTimestampCompat();
@@ -58,14 +60,29 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 	}
 #endif
 
+	// if you felt like it, you could calculate the step too
+	// i personally don't. this maintains compatibility with physics bypass
+
+	auto inputOffset = fields->m_inputOffset;
+	if (fields->m_inputOffsetRand != 0) {
+		auto offsetMax = fields->m_inputOffsetRand;
+		auto randValue = static_cast<double>(rand()) / static_cast<double>(RAND_MAX);
+		auto randOffset = static_cast<std::int32_t>((offsetMax * 2) * randValue - offsetMax);
+		inputOffset += randOffset;
+	}
+
+	// if addition would cause a negative time, just reset it to zero
+	if (inputOffset < 0 && -inputOffset > currentTime) {
+		currentTime = 0;
+	} else {
+		currentTime += inputOffset;
+	}
+
 #if DEBUG_STEPS
 	geode::log::debug("queueing input type={} down={} p2={} at time {} (ts {} -> {})", btnType, push, secondPlayer, currentTime, timeRelativeBegin, inputTimestamp);
 #endif
 
-	// if you felt like it, you could calculate the step too
-	// i personally don't. this maintains compatibility with physics bypass
-
-	this->m_fields->m_timedCommands.push({
+	fields->m_timedCommands.push({
 		static_cast<PlayerButton>(btnType),
 		push,
 		secondPlayer,
@@ -81,6 +98,9 @@ void CustomGJBaseGameLayer::resetLevelVariables() {
 	fields->m_timeBeginMs = 0;
 	fields->m_timeOffset = 0.0;
 	fields->m_timedCommands = {};
+	fields->m_disableInputCutoff = geode::Mod::get()->getSettingValue<bool>("late-input-cutoff");
+	fields->m_inputOffset = static_cast<std::int32_t>(geode::Mod::get()->getSettingValue<std::int64_t>("input-offset"));
+	fields->m_inputOffsetRand = static_cast<std::int32_t>(geode::Mod::get()->getSettingValue<std::int64_t>("input-offset-rand"));
 }
 
 void CustomGJBaseGameLayer::processTimedInputs() {
@@ -94,14 +114,14 @@ void CustomGJBaseGameLayer::processTimedInputs() {
 
 	auto& commands = fields->m_timedCommands;
 	if (!commands.empty()) {
-		auto nextTime = commands.front().m_step;
+		auto nextTime = commands.top().m_step;
 
 #if DEBUG_STEPS
 		geode::log::debug("step info: time={}, waiting for {}", timeMs, nextTime);
 #endif
 
 		while (!commands.empty() && nextTime <= timeMs) {
-			auto btn = commands.front();
+			auto btn = commands.top();
 			commands.pop();
 
 #if DEBUG_STEPS
@@ -119,17 +139,40 @@ void CustomGJBaseGameLayer::processTimedInputs() {
 #endif
 
 			if (!commands.empty()) {
-				nextTime = commands.front().m_step;
+				nextTime = commands.top().m_step;
 			}
 		}
 	}
 }
 
+void CustomGJBaseGameLayer::updateInputQueue() {
+	// failsafe, but with late input cutoff disabled, so we take each command and reset its time
+	auto& fields = this->m_fields;
+	auto& commands = fields->m_timedCommands;
+	auto timeMs = static_cast<std::int32_t>(fields->m_timeOffset * 1000.0);
+
+	PlayerButtonCommandQueue newCommands{};
+
+	while (!commands.empty()) {
+		auto btn = commands.top();
+		commands.pop();
+
+		auto currentStep = btn.m_step;
+		btn.m_step = std::max(btn.m_step - timeMs, 0);
+
+		newCommands.push(btn);
+	}
+
+	commands.swap(newCommands);
+}
+
 void CustomGJBaseGameLayer::dumpInputQueue() {
 	// failsafe, if an input hasn't been processed then we'll force it to be processed by the next frame
-	auto& commands = this->m_fields->m_timedCommands;
+	auto& fields = this->m_fields;
+	auto& commands = fields->m_timedCommands;
+
 	while (!commands.empty()) {
-		auto btn = commands.front();
+		auto btn = commands.top();
 		commands.pop();
 
 #if DEBUG_STEPS
@@ -153,7 +196,11 @@ void CustomGJBaseGameLayer::update(float dt) {
 
 	GJBaseGameLayer::update(dt);
 
-	dumpInputQueue();
+	if (fields->m_disableInputCutoff) {
+		updateInputQueue();
+	} else {
+		dumpInputQueue();
+	}
 }
 
 void CustomGJBaseGameLayer::processCommands(float timeStep) {

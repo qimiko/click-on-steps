@@ -5,6 +5,15 @@
 #include <Geode/modify/GJBaseGameLayer.hpp>
 
 #include <queue>
+#include <vector>
+
+struct PlayerButtonCommandCompare {
+	constexpr bool operator()(const PlayerButtonCommand& a, const PlayerButtonCommand& b) {
+		return a.m_step > b.m_step;
+	}
+};
+
+using PlayerButtonCommandQueue = std::priority_queue<PlayerButtonCommand, std::vector<PlayerButtonCommand>, PlayerButtonCommandCompare>;
 
 struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLayer> {
 	struct Fields {
@@ -16,7 +25,11 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 
 		// store timed commands separately from the typical input queue
 		// they will instead be added at the correct timestamp
-		std::queue<PlayerButtonCommand> m_timedCommands{};
+		PlayerButtonCommandQueue m_timedCommands{};
+
+		bool m_disableInputCutoff{};
+		std::int32_t m_inputOffset{};
+		std::int32_t m_inputOffsetRand{};
 	};
 
 	void update(float dt);
@@ -31,6 +44,8 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 	void processCommands(float timeStep);
 
 	void processTimedInputs();
+
+	void updateInputQueue();
 	void dumpInputQueue();
 
 	// windows workaround
