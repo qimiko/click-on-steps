@@ -30,6 +30,9 @@ struct CustomGJBaseGameLayer : geode::Modify<CustomGJBaseGameLayer, GJBaseGameLa
 		bool m_disableInputCutoff{};
 		std::int32_t m_inputOffset{};
 		std::int32_t m_inputOffsetRand{};
+
+		// there's probably a variable for this, but i'm lazy
+		bool m_inFrame{};
 	};
 
 	void update(float dt);

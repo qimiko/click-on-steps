@@ -1,6 +1,6 @@
 # Click on Steps
 
-Like the [Click Between Frames mod](https://github.com/theyareonit/Click-Between-Frames) by syzzi, but without the physics bypass.
+Like the [Click Between Frames mod](mod:syzzi.click_between_frames) by syzzi, but without the physics bypass.
 
 In practice, you gain the following benefits:
 

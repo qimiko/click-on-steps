@@ -38,6 +38,15 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 
 	auto& fields = this->m_fields;
 
+#ifdef GEODE_IS_ANDROID
+	// if the player is currently in a frame, just insert the input directly
+	// we do this to support android, which has an unstable gd::vector::push_back
+	// also, this breaks windows bc we hook vector enqueue which tries to return back to here... yay
+	if (fields->m_inFrame) {
+		return GJBaseGameLayer::queueButton(btnType, push, secondPlayer);
+	}
+#endif
+
 	auto inputTimestamp = static_cast<AsyncUILayer*>(this->m_uiLayer)->getLastTimestamp();
 	auto timeRelativeBegin = fields->m_timeBeginMs;
 
@@ -50,15 +59,6 @@ void CustomGJBaseGameLayer::queueButton(int btnType, bool push, bool secondPlaye
 		// holding at the start can queue a button before time is initialized
 		currentTime = 0;
 	}
-
-#ifdef GEODE_IS_ANDROID
-	// if time == 0, behavior should be equivalent to the original queuebutton (inserted immediately)
-	// we do this to support android, which has an unstable gd::vector::push_back
-	// also, this breaks windows bc we hook vector enqueue which tries to return back to here... yay
-	if (currentTime == 0) {
-		return GJBaseGameLayer::queueButton(btnType, push, secondPlayer);
-	}
-#endif
 
 	// if you felt like it, you could calculate the step too
 	// i personally don't. this maintains compatibility with physics bypass
@@ -194,6 +194,8 @@ void CustomGJBaseGameLayer::update(float dt) {
 	fields->m_timeBeginMs = platform_get_time();
 	fields->m_timeOffset = 0.0;
 
+	fields->m_inFrame = true;
+
 	GJBaseGameLayer::update(dt);
 
 	if (fields->m_disableInputCutoff) {
@@ -201,6 +203,8 @@ void CustomGJBaseGameLayer::update(float dt) {
 	} else {
 		dumpInputQueue();
 	}
+
+	fields->m_inFrame = false;
 }
 
 void CustomGJBaseGameLayer::processCommands(float timeStep) {
