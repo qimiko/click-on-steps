@@ -14,7 +14,7 @@
 			"name": "Handle Late Inputs",
 			"type": "bool",
 			"default": false,
-			"description": "When this option is disabled, inputs that are determined to have happened <cl>after the current frame</c> are queued to run at <cy>the start of the next frame</c>, regardless of when the input has happened. Enabling this may <cg>improve accuracy</c> in situations where the ticks per frame is inconsistent (such as lag or 144 fps) but at <cr>the cost of consistency</c> (double clicking)."
+			"description": "When this option is disabled, inputs that are determined to have happened <cl>after the current frame</c> are queued to run at <cy>the start of the next frame</c>, regardless of when the input has happened. Enabling this may <cg>improve accuracy</c> in situations where the ticks per frame is inconsistent (such as lag or 144 fps) but at <cr>the cost of consistency</c> (stuck inputs)."
 		},
 		"input-offset": {
 			"name": "Input Offset (ms)",
@@ -29,7 +29,7 @@
 			"description": "This is the same as the <cl>Input Offset</c> option, but with a <co>randomized offset</c>. Enjoy!",
 			"type": "int",
 			"default": 0,
-			"min": -1000,
+			"min": 0,
 			"max": 1000
 		},
 		"misc-title": {

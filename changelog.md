@@ -2,8 +2,9 @@
 
 ## v1.3.0
 
-- Update 2.2074
-- Disabled Windows support
+- update 2.2074
+- disabled Windows support
+- added some options to help with input latency
 
 ## v1.2.0
 
