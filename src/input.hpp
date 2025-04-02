@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCKeyboardDispatcher.hpp>
 #include <Geode/modify/CCTouchDispatcher.hpp>
 
 #include <cstdint>
@@ -22,6 +21,11 @@ public:
 	}
 };
 
+
+#ifndef GEODE_IS_IOS
+
+#include <Geode/modify/CCKeyboardDispatcher.hpp>
+
 struct ExtendedCCKeyboardDispatcher : geode::Modify<ExtendedCCKeyboardDispatcher, cocos2d::CCKeyboardDispatcher> {
 	// there's only one keyboard dispatcher ever and we can't really add new fields
 	static std::uint64_t g_lastTimestamp;
@@ -39,6 +43,8 @@ struct ExtendedCCKeyboardDispatcher : geode::Modify<ExtendedCCKeyboardDispatcher
 
 	bool dispatchKeyboardMSG(cocos2d::enumKeyCodes key, bool isKeyDown, bool isKeyRepeat);
 };
+
+#endif
 
 // all this has to do is add the timestamp to the event
 struct ExtendedCCTouchDispatcher : geode::Modify<ExtendedCCTouchDispatcher, cocos2d::CCTouchDispatcher> {

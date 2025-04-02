@@ -2,6 +2,8 @@
 
 #define DEBUG_DISPATCH false
 
+#ifndef GEODE_IS_IOS
+
 std::uint64_t ExtendedCCKeyboardDispatcher::g_lastTimestamp = 0ull;
 cocos2d::CCEvent* ExtendedCCKeyboardDispatcher::g_currentEventInfo = nullptr;
 
@@ -28,6 +30,8 @@ bool ExtendedCCKeyboardDispatcher::dispatchKeyboardMSG(cocos2d::enumKeyCodes key
 
 	return r;
 }
+
+#endif
 
 std::uint64_t ExtendedCCTouchDispatcher::g_lastTimestamp = 0ull;
 
